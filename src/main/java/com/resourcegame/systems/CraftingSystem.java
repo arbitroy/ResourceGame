@@ -10,6 +10,7 @@ public class CraftingSystem {
     private Map<String, CraftingProcess> activeProcesses;
     private ScheduledExecutorService craftingExecutor;
     private List<CraftingListener> craftingListeners;
+    
 
     public interface CraftingListener {
         void onCraftingCompleted(Recipe recipe);
@@ -27,7 +28,6 @@ public class CraftingSystem {
         initializeRecipes();
     }
 
-    // Static nested class to hold crafting process information
     private static class CraftingProcess {
         private final Recipe recipe;
         private final Inventory inventory;
@@ -65,54 +65,52 @@ public class CraftingSystem {
         }
     }
 
-    public void addCraftingListener(CraftingListener listener) {
-        if (!craftingListeners.contains(listener)) {
-            craftingListeners.add(listener);
-        }
-    }
-
     private void initializeRecipes() {
-        // Basic processing recipes
+        // Wood Processing
         Recipe plankRecipe = new Recipe("Wooden Planks", 2000);
-        plankRecipe.addIngredient(ResourceType.WOOD, 1);
-        plankRecipe.addResult(ResourceType.WOOD, 2);
-        plankRecipe.setDescription("Process raw wood into more efficient planks");
+        plankRecipe.addIngredient(ResourceType.WOOD, 2);
+        plankRecipe.addResult(ResourceType.WOODEN_PLANKS, 1);
+        plankRecipe.setDescription("Process raw wood into sturdy wooden planks for construction");
         recipes.add(plankRecipe);
 
+        // Stone Tool Crafting
         Recipe stoneToolRecipe = new Recipe("Stone Tools", 3000);
-        stoneToolRecipe.addIngredient(ResourceType.WOOD, 2);
-        stoneToolRecipe.addIngredient(ResourceType.STONE, 3);
-        stoneToolRecipe.addResult(ResourceType.IRON, 1);
-        stoneToolRecipe.setDescription("Craft basic tools to help mine iron");
+        stoneToolRecipe.addIngredient(ResourceType.WOOD, 1); // Handle
+        stoneToolRecipe.addIngredient(ResourceType.STONE, 2); // Tool head
+        stoneToolRecipe.addResult(ResourceType.STONE_TOOLS, 1);
+        stoneToolRecipe.setDescription("Craft basic tools using stone heads and wooden handles");
         recipes.add(stoneToolRecipe);
 
+        // Metal Processing
         Recipe metalAlloyRecipe = new Recipe("Metal Alloy", 5000);
         metalAlloyRecipe.addIngredient(ResourceType.IRON, 2);
-        metalAlloyRecipe.addIngredient(ResourceType.STONE, 1);
-        metalAlloyRecipe.addResult(ResourceType.GOLD, 1);
-        metalAlloyRecipe.setDescription("Combine iron and stone to create valuable gold");
+        metalAlloyRecipe.addIngredient(ResourceType.STONE, 1); // Flux material
+        metalAlloyRecipe.addResult(ResourceType.METAL_ALLOY, 1);
+        metalAlloyRecipe.setDescription("Combine iron and stone flux to create a stronger metal alloy");
         recipes.add(metalAlloyRecipe);
 
+        // Food Preservation
         Recipe preservedFoodRecipe = new Recipe("Preserved Food", 4000);
         preservedFoodRecipe.addIngredient(ResourceType.FOOD, 3);
-        preservedFoodRecipe.addIngredient(ResourceType.WOOD, 1);
-        preservedFoodRecipe.addResult(ResourceType.FOOD, 5);
-        preservedFoodRecipe.setDescription("Preserve food to increase its quantity");
+        preservedFoodRecipe.addIngredient(ResourceType.WOOD, 1); // For smoking/drying
+        preservedFoodRecipe.addResult(ResourceType.PRESERVED_FOOD, 2);
+        preservedFoodRecipe.setDescription("Preserve food using traditional smoking and drying techniques");
         recipes.add(preservedFoodRecipe);
 
-        Recipe constructionMaterialRecipe = new Recipe("Construction Materials", 6000);
-        constructionMaterialRecipe.addIngredient(ResourceType.STONE, 2);
-        constructionMaterialRecipe.addIngredient(ResourceType.WOOD, 2);
-        constructionMaterialRecipe.addResult(ResourceType.STONE, 3);
-        constructionMaterialRecipe.addResult(ResourceType.IRON, 1);
-        constructionMaterialRecipe.setDescription("Create improved building materials");
-        recipes.add(constructionMaterialRecipe);
+        // Construction Materials
+        Recipe buildingMaterialRecipe = new Recipe("Building Materials", 6000);
+        buildingMaterialRecipe.addIngredient(ResourceType.STONE, 2);
+        buildingMaterialRecipe.addIngredient(ResourceType.WOODEN_PLANKS, 2); // Requires processed wood
+        buildingMaterialRecipe.addResult(ResourceType.BUILDING_MATERIALS, 1);
+        buildingMaterialRecipe.setDescription("Create advanced building materials by combining processed resources");
+        recipes.add(buildingMaterialRecipe);
 
+        // Luxury Items
         Recipe luxuryItemRecipe = new Recipe("Luxury Items", 8000);
         luxuryItemRecipe.addIngredient(ResourceType.GOLD, 1);
-        luxuryItemRecipe.addIngredient(ResourceType.IRON, 2);
-        luxuryItemRecipe.addResult(ResourceType.GOLD, 2);
-        luxuryItemRecipe.setDescription("Create valuable luxury items from gold and iron");
+        luxuryItemRecipe.addIngredient(ResourceType.METAL_ALLOY, 1); // Requires processed metal
+        luxuryItemRecipe.addResult(ResourceType.LUXURY_ITEMS, 1);
+        luxuryItemRecipe.setDescription("Craft valuable luxury items using precious metals and alloys");
         recipes.add(luxuryItemRecipe);
     }
 
@@ -121,18 +119,20 @@ public class CraftingSystem {
     }
 
     public boolean canCraft(Recipe recipe, Inventory inventory) {
-        // Check for null recipe or inventory
-        if (recipe == null || inventory == null)
+        if (recipe == null || inventory == null) {
             return false;
+        }
 
-        // Check if inventory has enough space for results
+        // Calculate total result items
         int totalResultItems = recipe.getResults().values().stream()
                 .mapToInt(Integer::intValue).sum();
+
+        // Check inventory space
         if (!inventory.hasSpace(totalResultItems)) {
             return false;
         }
 
-        // Check if we have all required ingredients
+        // Check ingredients
         for (Map.Entry<ResourceType, Integer> ingredient : recipe.getIngredients().entrySet()) {
             if (!inventory.hasResource(ingredient.getKey(), ingredient.getValue())) {
                 return false;
@@ -142,54 +142,31 @@ public class CraftingSystem {
     }
 
     public boolean startCrafting(Recipe recipe, Inventory inventory, String craftingId) {
+
         if (!canCraft(recipe, inventory)) {
             notifyCraftingFailed(recipe, "Not enough resources or inventory space");
             return false;
         }
 
         try {
-            // First verify we can remove all ingredients
             Map<ResourceType, Integer> removedResources = new HashMap<>();
-
-            // Try to remove all ingredients
+            
+            // Remove ingredients
             for (Map.Entry<ResourceType, Integer> ingredient : recipe.getIngredients().entrySet()) {
                 ResourceType type = ingredient.getKey();
                 int amount = ingredient.getValue();
-
-                if (!inventory.hasResource(type, amount)) {
-                    // Rollback any resources we've already removed
-                    rollbackIngredients(inventory, removedResources);
-                    notifyCraftingFailed(recipe, "Missing required resources");
-                    return false;
-                }
-
+                
                 if (!inventory.removeResource(type, amount)) {
-                    // Rollback any resources we've already removed
                     rollbackIngredients(inventory, removedResources);
                     notifyCraftingFailed(recipe, "Failed to remove resources");
                     return false;
                 }
-
                 removedResources.put(type, amount);
             }
 
-            // Verify we have space for the results
-            int totalResults = recipe.getResults().values().stream()
-                    .mapToInt(Integer::intValue)
-                    .sum();
-
-            if (!inventory.hasSpace(totalResults)) {
-                // Rollback the removed ingredients
-                rollbackIngredients(inventory, removedResources);
-                notifyCraftingFailed(recipe, "Not enough inventory space for results");
-                return false;
-            }
-
-            // Start crafting process
             CraftingProcess process = new CraftingProcess(recipe, inventory, craftingId, removedResources);
             activeProcesses.put(craftingId, process);
 
-            // Schedule completion
             craftingExecutor.schedule(() -> {
                 completeCrafting(craftingId);
             }, recipe.getCraftingTime(), TimeUnit.MILLISECONDS);
@@ -198,8 +175,41 @@ public class CraftingSystem {
             return true;
 
         } catch (Exception e) {
+            System.out.println("Error starting craft: " + e.getMessage());
             notifyCraftingFailed(recipe, "Unexpected error: " + e.getMessage());
             return false;
+        }
+    }
+
+
+    private void completeCrafting(String craftingId) {
+
+        CraftingProcess process = activeProcesses.remove(craftingId);
+        if (process == null) {
+            System.out.println("No process found to complete for ID: " + craftingId);
+            return;
+        }
+
+        Recipe recipe = process.getRecipe();
+        Inventory inventory = process.getInventory();
+        boolean success = true;
+
+        // Add results to inventory
+        for (Map.Entry<ResourceType, Integer> result : recipe.getResults().entrySet()) {
+            if (!inventory.addResource(result.getKey(), result.getValue())) {
+                success = false;
+                break;
+            }
+        }
+
+        if (success) {
+
+            notifyCraftingCompleted(recipe);
+        } else {
+            System.out.println("Failed to complete crafting: " + recipe.getName());
+            // Return the original ingredients if adding results failed
+            rollbackIngredients(inventory, process.getRemovedResources());
+            notifyCraftingFailed(recipe, "Failed to add results to inventory");
         }
     }
 
@@ -209,28 +219,9 @@ public class CraftingSystem {
         }
     }
 
-    private void completeCrafting(String craftingId) {
-        CraftingProcess process = activeProcesses.remove(craftingId);
-        if (process != null) {
-            Recipe recipe = process.getRecipe();
-            Inventory inventory = process.getInventory();
-
-            boolean success = true;
-            // Add results to inventory
-            for (Map.Entry<ResourceType, Integer> result : recipe.getResults().entrySet()) {
-                if (!inventory.addResource(result.getKey(), result.getValue())) {
-                    success = false;
-                    break;
-                }
-            }
-
-            if (success) {
-                notifyCraftingCompleted(recipe);
-            } else {
-                notifyCraftingFailed(recipe, "Failed to add results to inventory");
-                // Return the original ingredients
-                rollbackIngredients(inventory, process.getRemovedResources());
-            }
+    public void addCraftingListener(CraftingListener listener) {
+        if (!craftingListeners.contains(listener)) {
+            craftingListeners.add(listener);
         }
     }
 
@@ -255,11 +246,16 @@ public class CraftingSystem {
     public float getCraftingProgress(String craftingId) {
         CraftingProcess process = activeProcesses.get(craftingId);
         if (process == null) {
-            return 0f;
+            System.out.println("Process not found for ID: " + craftingId); // Debug
+            return 1.0f; // Return complete if process not found
         }
 
-        long elapsedTime = System.currentTimeMillis() - process.getStartTime();
-        return Math.min(1.0f, (float) elapsedTime / process.getRecipe().getCraftingTime());
+        long currentTime = System.currentTimeMillis();
+        long elapsed = currentTime - process.getStartTime();
+        float progress = (float) elapsed / process.getRecipe().getCraftingTime();
+        
+        
+        return Math.min(1.0f, progress);
     }
 
     public void shutdown() {

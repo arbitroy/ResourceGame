@@ -92,16 +92,22 @@ public class ControlPanel extends JPanel {
 
     private void handleCraft() {
         if (game.getCraftingSystem() != null) {
-            CraftingPanel craftingPanel = new CraftingPanel(game.getCraftingSystem(), game.getPlayer().getInventory());
+            CraftingPanel craftingPanel = new CraftingPanel(
+                game.getCraftingSystem(), 
+                game.getPlayer().getInventory(),
+                this  // Pass reference to ControlPanel
+            );
             
             // Create dialog
-            JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this) instanceof Frame ? 
-                (Frame) SwingUtilities.getWindowAncestor(this) : null, 
-                "Crafting", false); // Non-modal dialog
+            JDialog dialog = new JDialog(
+                SwingUtilities.getWindowAncestor(this) instanceof Frame ? 
+                    (Frame) SwingUtilities.getWindowAncestor(this) : null, 
+                "Crafting", 
+                false
+            );
             
-            // Set focus behavior
-            dialog.setFocusableWindowState(false);  // Don't steal focus
-            dialog.setAutoRequestFocus(false);      // Don't auto request focus
+            dialog.setFocusableWindowState(false);
+            dialog.setAutoRequestFocus(false);
             
             dialog.setContentPane(craftingPanel);
             dialog.setSize(800, 600);
@@ -114,7 +120,6 @@ public class ControlPanel extends JPanel {
                 }
             });
             
-            // Keep focus on main game window
             JFrame gameFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
             if (gameFrame != null) {
                 gameFrame.requestFocus();

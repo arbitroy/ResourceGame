@@ -5,6 +5,7 @@ import com.resourcegame.utils.TileType;
 import com.resourcegame.entities.Resource;
 import com.resourcegame.utils.ResourceType;
 import java.util.Random;
+import java.util.EnumSet;
 
 public class GameMap {
     private Tile[][] grid;
@@ -12,7 +13,14 @@ public class GameMap {
     private final int height;
     private Position startingPosition;
     private Position selectedTile;
-
+    // Define set of base resources that can be harvested
+    private static final EnumSet<ResourceType> HARVESTABLE_RESOURCES = EnumSet.of(
+        ResourceType.WOOD,
+        ResourceType.STONE,
+        ResourceType.IRON,
+        ResourceType.GOLD,
+        ResourceType.FOOD
+    );
 
     public GameMap(int width, int height) {
         this.width = width;
@@ -39,16 +47,23 @@ public class GameMap {
         // Set market at bottom-right
         grid[width-1][height-1].setType(TileType.MARKET);
 
-        // Add some random resources
+        // Add random base resources
         for (int i = 0; i < width * height / 4; i++) {
             int x = random.nextInt(width);
             int y = random.nextInt(height);
             if (grid[x][y].getType() == TileType.EMPTY) {
                 grid[x][y].setType(TileType.RESOURCE);
-                grid[x][y].setResource(new Resource(getRandomResourceType()));
+                grid[x][y].setResource(new Resource(getRandomBaseResource()));
             }
         }
     }
+
+    private ResourceType getRandomBaseResource() {
+        ResourceType[] baseResources = HARVESTABLE_RESOURCES.toArray(new ResourceType[0]);
+        return baseResources[new Random().nextInt(baseResources.length)];
+    }
+
+    // Rest of the GameMap methods remain unchanged...
 
     public Position getSelectedTile() {
         return selectedTile;
@@ -56,11 +71,6 @@ public class GameMap {
 
     public void setSelectedTile(Position pos) {
         this.selectedTile = pos;
-    }
-
-    private ResourceType getRandomResourceType() {
-        ResourceType[] types = ResourceType.values();
-        return types[new Random().nextInt(types.length)];
     }
 
     public Position getStartingPosition() {
