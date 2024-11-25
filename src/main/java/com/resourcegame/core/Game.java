@@ -1,9 +1,15 @@
 package com.resourcegame.core;
 
+import com.resourcegame.entities.Factory;
+import com.resourcegame.entities.Harvester;
+import com.resourcegame.entities.Machine;
+import com.resourcegame.entities.MachineManager;
 import com.resourcegame.entities.Player;
 import com.resourcegame.systems.Market;
+import com.resourcegame.systems.Recipe;
 import com.resourcegame.systems.CraftingSystem;
 import com.resourcegame.utils.Direction;
+import com.resourcegame.utils.MachineType;
 import com.resourcegame.utils.Position;
 import com.resourcegame.utils.ResourceType;
 import com.resourcegame.ui.ControlPanel;
@@ -18,6 +24,7 @@ public class Game {
     private List<GameUIListener> uiListeners;
     private ControlPanel controlPanel;
     private Market market;
+    private MachineManager machineManager;
 
     public Game() {
         this.uiListeners = new ArrayList<>();
@@ -29,6 +36,7 @@ public class Game {
         player = new Player(map.getStartingPosition());
         market = new Market();
         craftingSystem = new CraftingSystem();
+        machineManager = new MachineManager(map);
     }
 
     public void movePlayer(Direction direction) {
@@ -115,6 +123,53 @@ public class Game {
                 System.out.println("Inventory is full!");
             }
         }
+    }
+
+     public boolean placeMachine(MachineType type, Position position) {
+        Tile tile = map.getTile(position);
+        if (tile != null && tile.isWalkable() && !tile.hasMachine()) {
+            Machine machine = machineManager.createMachine(type, position);
+            if (machine != null) {
+                tile.setMachine(machine);
+                notifyUIUpdate();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Add new method for configuring machines
+    public void configureMachine(Position position, Object configuration) {
+        Machine machine = machineManager.getMachineAt(position);
+        if (machine != null) {
+            if (machine instanceof Harvester && configuration instanceof ResourceType) {
+                ((Harvester) machine).setTargetResource((ResourceType) configuration);
+            } else if (machine instanceof Factory && configuration instanceof Recipe) {
+                ((Factory) machine).setRecipe((Recipe) configuration);
+            }
+            notifyUIUpdate();
+        }
+    }
+
+    // Add new method for removing machines
+    public void removeMachine(Position position) {
+        Tile tile = map.getTile(position);
+        if (tile != null && tile.hasMachine()) {
+            machineManager.removeMachine(position);
+            tile.setMachine(null);
+            notifyUIUpdate();
+        }
+    }
+
+     // Add machine manager getter
+     public MachineManager getMachineManager() {
+        return machineManager;
+    }
+
+    // Update the game loop or timer
+    public void update() {
+        machineManager.updateMachines();
+        notifyUIUpdate();
     }
 
     // UI Listener methods

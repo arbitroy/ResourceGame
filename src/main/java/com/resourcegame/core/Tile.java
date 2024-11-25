@@ -36,4 +36,17 @@ public class Tile {
     public boolean hasResource() {
         return resource != null;
     }
+
+    public Machine getMachine() {
+        return machine;
+    }
+
+    public void setMachine(Machine machine) {
+        this.machine = machine;
+    }
+
+    public boolean hasMachine() {
+        return machine != null;
+    }
+
 }
