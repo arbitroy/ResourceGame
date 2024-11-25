@@ -11,11 +11,14 @@ public class GameMap {
     private final int width;
     private final int height;
     private Position startingPosition;
+    private Position selectedTile;
+
 
     public GameMap(int width, int height) {
         this.width = width;
         this.height = height;
         this.grid = new Tile[width][height];
+        this.selectedTile = null;
         generateMap();
     }
 
@@ -45,6 +48,14 @@ public class GameMap {
                 grid[x][y].setResource(new Resource(getRandomResourceType()));
             }
         }
+    }
+
+    public Position getSelectedTile() {
+        return selectedTile;
+    }
+
+    public void setSelectedTile(Position pos) {
+        this.selectedTile = pos;
     }
 
     private ResourceType getRandomResourceType() {

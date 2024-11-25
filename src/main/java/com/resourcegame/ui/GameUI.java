@@ -24,15 +24,16 @@ public class GameUI extends JFrame implements GameUIListener {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        mapPanel = new MapPanel(game.getMap());
+        mapPanel = new MapPanel(game.getMap(), game); // Pass game reference
         controlPanel = new ControlPanel(game);
+        game.setControlPanel(controlPanel);
 
         add(mapPanel, BorderLayout.CENTER);
         add(controlPanel, BorderLayout.EAST);
 
         pack();
         setLocationRelativeTo(null);
-        setFocusable(true); // Important for keyboard input
+        setFocusable(true);
     }
 
     private void setupControls() {

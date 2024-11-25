@@ -57,23 +57,39 @@ public class Inventory {
         return resources.values().stream().mapToInt(Integer::intValue).sum();
     }
 
-    public String getInventoryDisplay() {
-        StringBuilder sb = new StringBuilder("<html>");
-        resources.forEach((type, count) -> 
-            sb.append(type).append(": ").append(count).append("<br>")
-        );
-        if (resources.isEmpty()) {
-            sb.append("Empty");
-        }
-        sb.append("</html>");
-        return sb.toString();
+    public int getResourceCount(ResourceType type) {
+        return resources.getOrDefault(type, 0);
     }
 
-    public boolean addResource(ResourceType type) {
-        if (getTotalItems() >= capacity) {
-            return false;
+    public boolean hasResource(ResourceType type, int amount) {
+        return getResourceCount(type) >= amount;
+    }
+
+    public boolean hasSpace(int items) {
+        return getTotalItems() + items <= capacity;
+    }
+
+    public String getInventoryDisplay() {
+        StringBuilder sb = new StringBuilder();
+        boolean hasItems = false;
+        
+        for (ResourceType type : ResourceType.values()) {
+            int count = getResourceCount(type);
+            if (count > 0) {
+                if (hasItems) {
+                    sb.append("\n");
+                }
+                sb.append(String.format("%-10s: %d", type.toString(), count));
+                hasItems = true;
+            }
         }
-        resources.merge(type, 1, Integer::sum);
-        return true;
+        
+        if (!hasItems) {
+            sb.append("Empty");
+        }
+        
+        sb.append("\nSpace: ").append(getTotalItems()).append("/").append(capacity);
+        
+        return sb.toString();
     }
 }

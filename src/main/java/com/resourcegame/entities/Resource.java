@@ -1,11 +1,9 @@
-// Resource.java
 package com.resourcegame.entities;
 
 import com.resourcegame.utils.ResourceType;
 
 public class Resource {
     private ResourceType type;
-    private int quantity;
     private long lastHarvestTime;
     private boolean isHarvestable;
     private int harvestCooldown; // milliseconds
@@ -13,7 +11,6 @@ public class Resource {
 
     public Resource(ResourceType type) {
         this.type = type;
-        this.quantity = 1;
         this.harvestCooldown = type.getBaseHarvestTime() * BASE_COOLDOWN;
         this.isHarvestable = true;
         this.lastHarvestTime = 0;

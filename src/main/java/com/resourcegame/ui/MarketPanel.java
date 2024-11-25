@@ -1,4 +1,3 @@
-// MarketPanel.java
 package com.resourcegame.ui;
 
 import com.resourcegame.systems.Market;

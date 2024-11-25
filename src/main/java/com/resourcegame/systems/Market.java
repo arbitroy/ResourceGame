@@ -1,4 +1,3 @@
-// Market.java
 package com.resourcegame.systems;
 
 import com.resourcegame.utils.ResourceType;
@@ -15,25 +14,32 @@ public class Market {
         this.buyPrices = new HashMap<>();
         this.sellPrices = new HashMap<>();
         this.stock = new HashMap<>();
+        new CraftingSystem();
         initializeMarket();
     }
 
     private void initializeMarket() {
         for (ResourceType type : ResourceType.values()) {
             buyPrices.put(type, getBasePrice(type));
-            sellPrices.put(type, (int)(getBasePrice(type) * 0.7)); // Sell price is 70% of buy price
+            sellPrices.put(type, (int) (getBasePrice(type) * 0.7)); // Sell price is 70% of buy price
             stock.put(type, MAX_STOCK / 2); // Start with half stock
         }
     }
 
     private int getBasePrice(ResourceType type) {
         switch (type) {
-            case WOOD: return 10;
-            case STONE: return 15;
-            case IRON: return 25;
-            case GOLD: return 50;
-            case FOOD: return 5;
-            default: return 10;
+            case WOOD:
+                return 10;
+            case STONE:
+                return 15;
+            case IRON:
+                return 25;
+            case GOLD:
+                return 50;
+            case FOOD:
+                return 5;
+            default:
+                return 10;
         }
     }
 
@@ -72,15 +78,15 @@ public class Market {
         // Simple supply-demand price adjustment
         float stockRatio = (float) stock.get(type) / MAX_STOCK;
         int basePrice = getBasePrice(type);
-        
+
         if (isSelling) {
             // More stock = lower prices
-            buyPrices.put(type, (int)(basePrice * (1.5f - stockRatio)));
-            sellPrices.put(type, (int)(buyPrices.get(type) * 0.7f));
+            buyPrices.put(type, (int) (basePrice * (1.5f - stockRatio)));
+            sellPrices.put(type, (int) (buyPrices.get(type) * 0.7f));
         } else {
             // Less stock = higher prices
-            buyPrices.put(type, (int)(basePrice * (2.0f - stockRatio)));
-            sellPrices.put(type, (int)(buyPrices.get(type) * 0.7f));
+            buyPrices.put(type, (int) (basePrice * (2.0f - stockRatio)));
+            sellPrices.put(type, (int) (buyPrices.get(type) * 0.7f));
         }
     }
 
