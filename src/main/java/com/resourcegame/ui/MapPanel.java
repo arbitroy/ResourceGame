@@ -177,9 +177,10 @@ public class MapPanel extends JPanel {
             drawResourceIndicator(g2d, x, y, tile.getResource());
         }
         
-        // Draw market indicator if it's a market tile
         if (tileType == TileType.MARKET) {
-            drawMarketIndicator(g2d, x, y);
+            // Check if player is adjacent to market
+            boolean isAdjacentToMarket = playerPosition.isAdjacent(new Position(x, y));
+            drawMarketIndicator(g2d, x, y, isAdjacentToMarket);
         }
     }
 
@@ -221,9 +222,10 @@ public class MapPanel extends JPanel {
         g2d.drawString(resourceType, textX, textY);
     }
 
-    private void drawMarketIndicator(Graphics2D g2d, int x, int y) {
+    private void drawMarketIndicator(Graphics2D g2d, int x, int y, boolean isAdjacent) {
         int padding = 8;
-        g2d.setColor(new Color(184, 134, 11)); // Darker yellow
+        // Draw base market symbol
+        g2d.setColor(new Color(184, 134, 11)); // Market color
         g2d.fillRect(
             x * TILE_SIZE + padding,
             y * TILE_SIZE + padding,
@@ -239,6 +241,18 @@ public class MapPanel extends JPanel {
             x * TILE_SIZE + (TILE_SIZE - fm.stringWidth("M")) / 2,
             y * TILE_SIZE + (TILE_SIZE + fm.getAscent()) / 2
         );
+        
+        // Draw highlight if adjacent
+        if (isAdjacent) {
+            g2d.setColor(new Color(255, 215, 0, 100)); // Semi-transparent gold
+            g2d.setStroke(new BasicStroke(2));
+            g2d.drawRect(
+                x * TILE_SIZE + 2,
+                y * TILE_SIZE + 2,
+                TILE_SIZE - 4,
+                TILE_SIZE - 4
+            );
+        }
     }
 
     private void drawPlayer(Graphics2D g2d, int x, int y) {

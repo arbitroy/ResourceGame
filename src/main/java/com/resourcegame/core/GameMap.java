@@ -86,4 +86,8 @@ public class GameMap {
 
     public int getWidth() { return width; }
     public int getHeight() { return height; }
+    public Position getMarketPosition() {
+        // Market is at bottom-right corner as defined in generateMap()
+        return new Position(width - 1, height - 1);
+    }
 }

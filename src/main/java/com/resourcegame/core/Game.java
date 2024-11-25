@@ -17,6 +17,7 @@ public class Game {
     private CraftingSystem craftingSystem;
     private List<GameUIListener> uiListeners;
     private ControlPanel controlPanel;
+    private Market market;
 
     public Game() {
         this.uiListeners = new ArrayList<>();
@@ -26,14 +27,14 @@ public class Game {
     private void initializeGame() {
         map = new GameMap(20, 20);
         player = new Player(map.getStartingPosition());
-        new Market();
+        market = new Market();
         craftingSystem = new CraftingSystem();
     }
 
     public void movePlayer(Direction direction) {
         Position currentPos = player.getPosition();
         Position newPos = calculateNewPosition(currentPos, direction);
-        
+
         if (isValidMove(newPos)) {
             player.setPosition(newPos);
             // Clear any selected tile when moving
@@ -44,6 +45,12 @@ public class Game {
                 }
             }
             notifyUIUpdate();
+        }
+
+        if (player.getPosition().isAdjacent(map.getMarketPosition())) {
+            controlPanel.updateMarketButton(true);
+        } else {
+            controlPanel.updateMarketButton(false);
         }
     }
 
@@ -92,9 +99,9 @@ public class Game {
 
     public void harvestResource(Position resourcePos) {
         Tile tile = map.getTile(resourcePos);
-        if (tile != null && tile.hasResource() && tile.getResource().canHarvest() && 
-            player.getPosition().isAdjacent(resourcePos)) {
-            
+        if (tile != null && tile.hasResource() && tile.getResource().canHarvest() &&
+                player.getPosition().isAdjacent(resourcePos)) {
+
             ResourceType resourceType = tile.getResource().getType();
             if (player.getInventory().addResource(resourceType, 1)) {
                 tile.getResource().harvest();
@@ -148,5 +155,9 @@ public class Game {
 
     public CraftingSystem getCraftingSystem() {
         return craftingSystem;
+    }
+
+    public Market getMarket() {
+        return market;
     }
 }
