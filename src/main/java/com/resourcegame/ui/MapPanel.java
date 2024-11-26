@@ -410,36 +410,113 @@ public class MapPanel extends JPanel {
     private void drawMachine(Graphics2D g2d, int x, int y, Machine machine) {
         int padding = 8;
         int size = TILE_SIZE - (padding * 2);
-
+    
         // Draw machine base
-        Color machineColor = machine instanceof Harvester ? new Color(70, 130, 180) : // Steel blue for harvesters
-                new Color(139, 69, 19); // Saddle brown for factories
-
+        Color machineColor = getMachineBaseColor(machine);
         g2d.setColor(machineColor);
         g2d.fillRect(
                 x * TILE_SIZE + padding,
                 y * TILE_SIZE + padding,
                 size,
                 size);
-
-        // Draw machine status indicator
-        if (machine.isWorking()) {
-            g2d.setColor(new Color(50, 205, 50)); // Lime green
-            g2d.fillOval(
-                    x * TILE_SIZE + TILE_SIZE - 10,
-                    y * TILE_SIZE + 5,
-                    6,
-                    6);
+    
+        // Draw status indicator
+        drawMachineStatus(g2d, x, y, machine);
+    
+        // Draw inventory fill level
+        if (machine.getInventory().getTotalItems() > 0) {
+            int fillHeight = (int)((float)machine.getInventory().getTotalItems() 
+                                  / machine.getInventoryCapacity() * size);
+            g2d.setColor(new Color(255, 255, 255, 80));
+            g2d.fillRect(
+                    x * TILE_SIZE + padding,
+                    y * TILE_SIZE + padding + (size - fillHeight),
+                    3, // width of fill bar
+                    fillHeight);
         }
-
+    
         // Draw machine type indicator
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 10));
-        String typeIndicator = machine instanceof Harvester ? "H" : "F";
+        String typeIndicator = getMachineTypeIndicator(machine);
         FontMetrics fm = g2d.getFontMetrics();
         g2d.drawString(typeIndicator,
                 x * TILE_SIZE + (TILE_SIZE - fm.stringWidth(typeIndicator)) / 2,
                 y * TILE_SIZE + (TILE_SIZE + fm.getAscent()) / 2);
+    
+        // Draw progress bar for factories
+        if (machine instanceof Factory) {
+            drawFactoryProgress(g2d, x, y, (Factory) machine);
+        }
+    }
+
+    private Color getMachineBaseColor(Machine machine) {
+        if (machine instanceof Harvester) {
+            return machine.getType().toString().contains("ADVANCED") ? 
+                   new Color(70, 130, 180) :  // Steel blue for advanced
+                   new Color(100, 149, 237);  // Cornflower blue for basic
+        } else {
+            return machine.getType().toString().contains("ADVANCED") ? 
+                   new Color(139, 69, 19) :   // Saddle brown for advanced
+                   new Color(160, 82, 45);    // Sienna for basic
+        }
+    }
+
+    private void drawMachineStatus(Graphics2D g2d, int x, int y, Machine machine) {
+        Color statusColor;
+        switch (machine.getStatus()) {
+            case WORKING:
+                statusColor = new Color(50, 205, 50); // Lime green
+                break;
+            case INVENTORY_FULL:
+                statusColor = new Color(255, 0, 0);   // Red
+                break;
+            case INVENTORY_NEARLY_FULL:
+                statusColor = new Color(255, 165, 0); // Orange
+                break;
+            case NEEDS_CONFIG:
+                statusColor = new Color(255, 215, 0); // Yellow
+                break;
+            case INSUFFICIENT_RESOURCES:
+                statusColor = new Color(255, 69, 0);  // Red-Orange
+                break;
+            default:
+                statusColor = new Color(128, 128, 128); // Gray
+        }
+
+        g2d.setColor(statusColor);
+        g2d.fillOval(
+                x * TILE_SIZE + TILE_SIZE - 10,
+                y * TILE_SIZE + 5,
+                6,
+                6);
+    }
+
+    private void drawFactoryProgress(Graphics2D g2d, int x, int y, Factory factory) {
+        float progress = factory.getCraftingProgress();
+        if (progress > 0) {
+            int barHeight = 3;
+            int barY = y * TILE_SIZE + TILE_SIZE - barHeight - 2;
+            
+            // Draw background
+            g2d.setColor(new Color(0, 0, 0, 100));
+            g2d.fillRect(x * TILE_SIZE + 4, barY, TILE_SIZE - 8, barHeight);
+            
+            // Draw progress
+            g2d.setColor(new Color(50, 205, 50));
+            g2d.fillRect(x * TILE_SIZE + 4, barY, 
+                    (int)((TILE_SIZE - 8) * progress), barHeight);
+        }
+    }
+
+    private String getMachineTypeIndicator(Machine machine) {
+        if (machine instanceof Harvester) {
+            Harvester harvester = (Harvester) machine;
+            ResourceType target = harvester.getTargetResource();
+            return target != null ? target.toString().substring(0, 1) : "H";
+        } else {
+            return "F";
+        }
     }
 
     private void drawPlayer(Graphics2D g2d, int x, int y) {

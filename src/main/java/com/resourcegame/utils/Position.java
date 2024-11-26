@@ -29,4 +29,9 @@ public class Position {
         int dy = Math.abs(y - other.y);
         return (dx == 1 && dy == 0) || (dx == 0 && dy == 1);
     }
+
+    @Override
+    public String toString() {
+        return "(" + x + ", " + y + ")";
+    }
 }

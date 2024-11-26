@@ -11,12 +11,14 @@ public class GameUI extends JFrame implements GameUIListener {
     private Game game;
     private MapPanel mapPanel;
     private ControlPanel controlPanel;
+    private Timer gameTimer;
 
     public GameUI() {
         this.game = new Game();
         this.game.addUIListener(this); // Register for game updates
         initializeUI();
         setupControls();
+        setupGameTimer();
     }
 
     private void initializeUI() {
@@ -61,12 +63,25 @@ public class GameUI extends JFrame implements GameUIListener {
         });
     }
 
+    private void setupGameTimer() {
+        gameTimer = new Timer(100, e -> game.update()); // Update every 100ms
+        gameTimer.start();
+    }
+
     @Override
     public void onGameUpdate() {
         // Update UI components when game state changes
         mapPanel.updatePlayerPosition(game.getPlayer().getPosition());
         controlPanel.updateInventoryDisplay(game.getPlayer().getInventory().getInventoryDisplay());
         repaint();
+    }
+
+    @Override
+    public void dispose() {
+        if (gameTimer != null) {
+            gameTimer.stop();
+        }
+        super.dispose();
     }
 
     // Add this main method to run the game

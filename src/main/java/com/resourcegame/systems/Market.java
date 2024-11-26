@@ -3,6 +3,8 @@ package com.resourcegame.systems;
 import com.resourcegame.utils.MachineType;
 import com.resourcegame.utils.ResourceType;
 import com.resourcegame.entities.Inventory;
+import com.resourcegame.entities.MachineManager;
+
 import java.util.*;
 
 public class Market {
@@ -11,6 +13,7 @@ public class Market {
     private Map<ResourceType, Integer> stock;
     private static final int MAX_STOCK = 1000;
     private Map<MachineType, Integer> machinePrices;
+    private MachineManager machineManager;
 
     public Market() {
         this.buyPrices = new HashMap<>();
@@ -113,11 +116,20 @@ public class Market {
     }
     
     public boolean purchaseMachine(MachineType type, Inventory playerInventory) {
+        int price = type.getBasePrice();
+        if (playerInventory.getMoney() >= price) {
+            if (playerInventory.removeMoney(price)) {
+                playerInventory.addMachine(type);
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public boolean finalizeMachinePurchase(MachineType type, Inventory playerInventory) {
         int price = machinePrices.get(type);
         if (playerInventory.getMoney() >= price) {
             if (playerInventory.removeMoney(price)) {
-                // Add machine to player's inventory/game
-                // This will need to be implemented based on your machine system
                 return true;
             }
         }
@@ -126,5 +138,9 @@ public class Market {
     
     public int getMachinePrice(MachineType type) {
         return machinePrices.get(type);
+    }
+
+    public void setMachineManager(MachineManager machineManager) {
+        this.machineManager = machineManager;
     }
 }

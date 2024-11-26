@@ -25,6 +25,8 @@ public class Game {
     private ControlPanel controlPanel;
     private Market market;
     private MachineManager machineManager;
+    private Runnable placementCallback;
+    private MachineType pendingPlacement;
 
     public Game() {
         this.uiListeners = new ArrayList<>();
@@ -37,6 +39,8 @@ public class Game {
         market = new Market();
         craftingSystem = new CraftingSystem();
         machineManager = new MachineManager(map);
+        // Connect the market to the machine manager
+        market.setMachineManager(machineManager);
     }
 
     public void movePlayer(Direction direction) {
@@ -83,6 +87,42 @@ public class Game {
                 map.getTile(newPos).isWalkable();
     }
 
+
+    public void startMachinePlacement(MachineType type, Runnable onSuccess) {
+        this.pendingPlacement = type;
+        this.placementCallback = onSuccess;
+    }
+
+
+    public boolean placeMachine(MachineType type, Position position) {
+        Tile tile = map.getTile(position);
+        if (tile != null && tile.isWalkable() && !tile.hasMachine()) {
+            Machine machine = machineManager.createMachine(type, position);
+            if (machine != null) {
+                tile.setMachine(machine);
+                notifyUIUpdate();
+                
+                // Execute callback if this was part of a placement operation
+                if (placementCallback != null && type == pendingPlacement) {
+                    placementCallback.run();
+                    placementCallback = null;
+                    pendingPlacement = null;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean isPlacingMachine() {
+        return pendingPlacement != null;
+    }
+
+    public void cancelMachinePlacement() {
+        pendingPlacement = null;
+        placementCallback = null;
+    }
+
     public void attemptHarvest() {
         Position playerPos = player.getPosition();
         for (Position adjacent : playerPos.getAdjacentPositions()) {
@@ -125,18 +165,7 @@ public class Game {
         }
     }
 
-     public boolean placeMachine(MachineType type, Position position) {
-        Tile tile = map.getTile(position);
-        if (tile != null && tile.isWalkable() && !tile.hasMachine()) {
-            Machine machine = machineManager.createMachine(type, position);
-            if (machine != null) {
-                tile.setMachine(machine);
-                notifyUIUpdate();
-                return true;
-            }
-        }
-        return false;
-    }
+
 
     // Add new method for configuring machines
     public void configureMachine(Position position, Object configuration) {
