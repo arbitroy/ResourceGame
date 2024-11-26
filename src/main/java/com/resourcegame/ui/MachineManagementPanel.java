@@ -13,6 +13,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 
 import java.util.Arrays;
 import java.util.List;
@@ -24,7 +26,7 @@ public class MachineManagementPanel extends JPanel {
     private Timer updateTimer;
     private JPanel machineListPanel;
     private JPanel unplacedMachinesPanel;
-    private static final int STATUS_UPDATE_INTERVAL = 100; 
+    private static final int STATUS_UPDATE_INTERVAL = 100;
 
     public MachineManagementPanel(Game game, ControlPanel controlPanel) {
         this.game = game;
@@ -150,7 +152,7 @@ public class MachineManagementPanel extends JPanel {
         if (game.getPlayer().getInventory().getUnplacedMachineCount(type) > 0) {
             // Start the placement process using ControlPanel's method
             controlPanel.startMachinePlacement(type);
-            
+
             // Add callback via game for when placement is successful
             game.startMachinePlacement(type, () -> {
                 // On successful placement, remove from inventory and update UI
@@ -169,11 +171,11 @@ public class MachineManagementPanel extends JPanel {
 
         // Machine Type and Location
         JPanel headerPanel = new JPanel(new BorderLayout());
-        String machineTitle = String.format("%s at %s", 
-            formatMachineType(machine), 
-            machine.getPosition().toString());
+        String machineTitle = String.format("%s at %s",
+                formatMachineType(machine),
+                machine.getPosition().toString());
         headerPanel.add(new JLabel(machineTitle), BorderLayout.WEST);
-        
+
         // Status indicator
         JLabel statusLabel = new JLabel(machine.getStatusMessage());
         statusLabel.setForeground(getStatusColor(machine.getStatus()));
@@ -182,19 +184,19 @@ public class MachineManagementPanel extends JPanel {
 
         // Machine Controls and Status
         JPanel controlsPanel = new JPanel(new BorderLayout());
-        
+
         // Progress bar for factories
         if (machine instanceof Factory) {
             Factory factory = (Factory) machine;
             JProgressBar progressBar = new JProgressBar(0, 100);
             progressBar.setStringPainted(true);
-            progressBar.setValue((int)(factory.getCraftingProgress() * 100));
+            progressBar.setValue((int) (factory.getCraftingProgress() * 100));
             controlsPanel.add(progressBar, BorderLayout.CENTER);
         }
 
         // Machine-specific controls
         JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        
+
         if (machine instanceof Harvester) {
             addHarvesterControls(buttonsPanel, (Harvester) machine);
         } else if (machine instanceof Factory) {
@@ -215,9 +217,9 @@ public class MachineManagementPanel extends JPanel {
         JProgressBar inventoryBar = new JProgressBar(0, machine.getInventoryCapacity());
         inventoryBar.setValue(machine.getInventory().getTotalItems());
         inventoryBar.setStringPainted(true);
-        inventoryBar.setString(String.format("Inventory: %d/%d", 
-            machine.getInventory().getTotalItems(), 
-            machine.getInventoryCapacity()));
+        inventoryBar.setString(String.format("Inventory: %d/%d",
+                machine.getInventory().getTotalItems(),
+                machine.getInventoryCapacity()));
         inventoryPanel.add(inventoryBar, BorderLayout.CENTER);
         panel.add(inventoryPanel, BorderLayout.SOUTH);
 
@@ -244,34 +246,107 @@ public class MachineManagementPanel extends JPanel {
     }
 
     private void addHarvesterControls(JPanel panel, Harvester harvester) {
-        JComboBox<ResourceType> resourceSelect = new JComboBox<>(
-            Arrays.stream(ResourceType.values())
-                  .filter(r -> r.getBaseHarvestTime() > 0)
-                  .toArray(ResourceType[]::new)
-        );
-        resourceSelect.setSelectedItem(harvester.getTargetResource());
-        resourceSelect.addActionListener(e -> harvester.setTargetResource(
-            (ResourceType) resourceSelect.getSelectedItem()));
-        panel.add(resourceSelect);
+        JButton configButton = new JButton("Set Resource Target");
+        configButton.addActionListener(e -> {
+            // Get the appropriate parent window
+            Window parentWindow = SwingUtilities.getWindowAncestor(panel);
+            JDialog dialog;
+            
+            // Create dialog based on parent window type
+            if (parentWindow instanceof Frame) {
+                dialog = new JDialog((Frame)parentWindow, "Select Resource", true);
+            } else if (parentWindow instanceof Dialog) {
+                dialog = new JDialog((Dialog)parentWindow, "Select Resource", true);
+            } else {
+                dialog = new JDialog();
+                dialog.setTitle("Select Resource");
+                dialog.setModal(true);
+            }
+            
+            JPanel resourcePanel = new JPanel();
+            resourcePanel.setLayout(new BoxLayout(resourcePanel, BoxLayout.Y_AXIS));
+            
+            // Add button for each harvestable resource
+            for (ResourceType type : ResourceType.values()) {
+                if (type.getBaseHarvestTime() > 0) {
+                    JButton resourceButton = new JButton(type.toString());
+                    // Highlight current selection
+                    if (type == harvester.getTargetResource()) {
+                        resourceButton.setBackground(new Color(200, 255, 200));
+                    }
+                    resourceButton.addActionListener(event -> {
+                        harvester.setTargetResource(type);
+                        dialog.dispose();
+                        // Refresh the machine management panel
+                        updateMachineList();
+                    });
+                    resourcePanel.add(resourceButton);
+                    resourcePanel.add(Box.createVerticalStrut(5)); // Add spacing
+                }
+            }
+    
+            dialog.add(resourcePanel);
+            dialog.pack();
+            dialog.setLocationRelativeTo(panel);
+            dialog.setVisible(true);
+        });
+    
+        panel.add(configButton);
     }
-
+    
     private void addFactoryControls(JPanel panel, Factory factory) {
-        JButton recipeButton = new JButton("Set Recipe");
-        recipeButton.addActionListener(e -> {
-            JPopupMenu menu = new JPopupMenu();
+        JButton configButton = new JButton("Set Recipe");
+        configButton.addActionListener(e -> {
+            // Get the appropriate parent window
+            Window parentWindow = SwingUtilities.getWindowAncestor(panel);
+            JDialog dialog;
+            
+            // Create dialog based on parent window type
+            if (parentWindow instanceof Frame) {
+                dialog = new JDialog((Frame)parentWindow, "Select Recipe", true);
+            } else if (parentWindow instanceof Dialog) {
+                dialog = new JDialog((Dialog)parentWindow, "Select Recipe", true);
+            } else {
+                dialog = new JDialog();
+                dialog.setTitle("Select Recipe");
+                dialog.setModal(true);
+            }
+            
+            JPanel recipePanel = new JPanel();
+            recipePanel.setLayout(new BoxLayout(recipePanel, BoxLayout.Y_AXIS));
+            
+            // Add button for each recipe
             for (Recipe recipe : game.getCraftingSystem().getAllRecipes()) {
-                JMenuItem item = new JMenuItem(recipe.getName());
-                item.addActionListener(ev -> {
+                JButton recipeButton = new JButton(recipe.getName());
+                // Highlight current selection
+                if (recipe.equals(factory.getSelectedRecipe())) {
+                    recipeButton.setBackground(new Color(200, 255, 200));
+                }
+                recipeButton.addActionListener(event -> {
                     factory.setRecipe(recipe);
+                    dialog.dispose();
+                    // Refresh the machine management panel
                     updateMachineList();
                 });
-                menu.add(item);
+                recipePanel.add(recipeButton);
+                recipePanel.add(Box.createVerticalStrut(5)); // Add spacing
+                
+                // Add recipe description
+                JLabel description = new JLabel("<html><i>" + recipe.getDescription() + "</i></html>");
+                description.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
+                recipePanel.add(description);
             }
-            menu.show(recipeButton, 0, recipeButton.getHeight());
+    
+            JScrollPane scrollPane = new JScrollPane(recipePanel);
+            scrollPane.setPreferredSize(new Dimension(300, Math.min(400, recipePanel.getPreferredSize().height)));
+            dialog.add(scrollPane);
+            dialog.pack();
+            dialog.setLocationRelativeTo(panel);
+            dialog.setVisible(true);
         });
-        panel.add(recipeButton);
+    
+        panel.add(configButton);
     }
-
 
     private void handleResourceCollection(Machine machine) {
         if (machine.getInventory().getTotalItems() == 0) {
