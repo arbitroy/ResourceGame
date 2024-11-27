@@ -6,6 +6,9 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.io.IOException;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class GameUI extends JFrame implements GameUIListener {
     private Game game;
@@ -32,6 +35,13 @@ public class GameUI extends JFrame implements GameUIListener {
 
         add(mapPanel, BorderLayout.CENTER);
         add(controlPanel, BorderLayout.EAST);
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                saveGameState("gamestate.txt");
+            }
+        });
 
         pack();
         setLocationRelativeTo(null);
@@ -68,6 +78,30 @@ public class GameUI extends JFrame implements GameUIListener {
         gameTimer.start();
     }
 
+    public void saveGameState(String filename) {
+        try {
+            GameState.saveGame(game, filename);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to save game: " + e.getMessage(),
+                    "Save Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    public void loadGameState(String filename) {
+        try {
+            GameState.loadGame(game, filename);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to load game: " + e.getMessage(),
+                    "Load Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+   
+
     @Override
     public void onGameUpdate() {
         // Update UI components when game state changes
@@ -84,11 +118,4 @@ public class GameUI extends JFrame implements GameUIListener {
         super.dispose();
     }
 
-    // Add this main method to run the game
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            GameUI gameUI = new GameUI();
-            gameUI.setVisible(true);
-        });
-    }
 }
