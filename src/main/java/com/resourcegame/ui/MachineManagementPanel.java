@@ -295,57 +295,150 @@ public class MachineManagementPanel extends JPanel {
     }
     
     private void addFactoryControls(JPanel panel, Factory factory) {
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        
+        // Recipe configuration button
         JButton configButton = new JButton("Set Recipe");
-        configButton.addActionListener(e -> {
-            // Get the appropriate parent window
-            Window parentWindow = SwingUtilities.getWindowAncestor(panel);
-            JDialog dialog;
-            
-            // Create dialog based on parent window type
-            if (parentWindow instanceof Frame) {
-                dialog = new JDialog((Frame)parentWindow, "Select Recipe", true);
-            } else if (parentWindow instanceof Dialog) {
-                dialog = new JDialog((Dialog)parentWindow, "Select Recipe", true);
-            } else {
-                dialog = new JDialog();
-                dialog.setTitle("Select Recipe");
-                dialog.setModal(true);
+        configButton.addActionListener(e -> showRecipeDialog(panel, factory));
+        
+        // Transfer resources button
+        JButton transferButton = new JButton("Transfer Resources");
+        transferButton.addActionListener(e -> showTransferDialog(panel, factory));
+        
+        buttonPanel.add(configButton);
+        buttonPanel.add(transferButton);
+        panel.add(buttonPanel);
+    }
+    
+    private void showRecipeDialog(JPanel panel, Factory factory) {
+        Window parentWindow = SwingUtilities.getWindowAncestor(panel);
+        JDialog dialog;
+        
+        if (parentWindow instanceof Frame) {
+            dialog = new JDialog((Frame)parentWindow, "Select Recipe", true);
+        } else if (parentWindow instanceof Dialog) {
+            dialog = new JDialog((Dialog)parentWindow, "Select Recipe", true);
+        } else {
+            dialog = new JDialog();
+            dialog.setTitle("Select Recipe");
+            dialog.setModal(true);
+        }
+        
+        JPanel recipePanel = new JPanel();
+        recipePanel.setLayout(new BoxLayout(recipePanel, BoxLayout.Y_AXIS));
+        
+        for (Recipe recipe : game.getCraftingSystem().getAllRecipes()) {
+            JButton recipeButton = new JButton(recipe.getName());
+            if (recipe.equals(factory.getSelectedRecipe())) {
+                recipeButton.setBackground(new Color(200, 255, 200));
             }
+            recipeButton.addActionListener(event -> {
+                factory.setRecipe(recipe);
+                dialog.dispose();
+                updateMachineList();
+            });
+            recipePanel.add(recipeButton);
+            recipePanel.add(Box.createVerticalStrut(5));
             
-            JPanel recipePanel = new JPanel();
-            recipePanel.setLayout(new BoxLayout(recipePanel, BoxLayout.Y_AXIS));
+            JLabel description = new JLabel("<html><i>" + recipe.getDescription() + "</i></html>");
+            description.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
+            recipePanel.add(description);
+        }
+    
+        JScrollPane scrollPane = new JScrollPane(recipePanel);
+        scrollPane.setPreferredSize(new Dimension(300, Math.min(400, recipePanel.getPreferredSize().height)));
+        dialog.add(scrollPane);
+        dialog.pack();
+        dialog.setLocationRelativeTo(panel);
+        dialog.setVisible(true);
+    }
+    
+    private void showTransferDialog(JPanel panel, Factory factory) {
+        Window parentWindow = SwingUtilities.getWindowAncestor(panel);
+        JDialog dialog;
+        
+        if (parentWindow instanceof Frame) {
+            dialog = new JDialog((Frame)parentWindow, "Transfer Resources", true);
+        } else if (parentWindow instanceof Dialog) {
+            dialog = new JDialog((Dialog)parentWindow, "Transfer Resources", true);
+        } else {
+            dialog = new JDialog();
+            dialog.setTitle("Transfer Resources");
+            dialog.setModal(true);
+        }
+        
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        if (factory.getSelectedRecipe() == null) {
+            mainPanel.add(new JLabel("Please set a recipe first!"));
+        } else {
+            Recipe recipe = factory.getSelectedRecipe();
             
-            // Add button for each recipe
-            for (Recipe recipe : game.getCraftingSystem().getAllRecipes()) {
-                JButton recipeButton = new JButton(recipe.getName());
-                // Highlight current selection
-                if (recipe.equals(factory.getSelectedRecipe())) {
-                    recipeButton.setBackground(new Color(200, 255, 200));
-                }
-                recipeButton.addActionListener(event -> {
-                    factory.setRecipe(recipe);
-                    dialog.dispose();
-                    // Refresh the machine management panel
-                    updateMachineList();
-                });
-                recipePanel.add(recipeButton);
-                recipePanel.add(Box.createVerticalStrut(5)); // Add spacing
+            // Recipe info panel
+            JPanel recipeInfoPanel = new JPanel(new BorderLayout());
+            recipeInfoPanel.add(new JLabel("Recipe: " + recipe.getName()), BorderLayout.NORTH);
+            mainPanel.add(recipeInfoPanel);
+            mainPanel.add(Box.createVerticalStrut(10));
+            
+            // Add each required resource
+            for (Map.Entry<ResourceType, Integer> ingredient : recipe.getIngredients().entrySet()) {
+                ResourceType type = ingredient.getKey();
+                int required = ingredient.getValue();
+                int inFactory = factory.getInventory().getResourceCount(type);
+                int inPlayer = game.getPlayer().getInventory().getResourceCount(type);
                 
-                // Add recipe description
-                JLabel description = new JLabel("<html><i>" + recipe.getDescription() + "</i></html>");
-                description.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
-                recipePanel.add(description);
+                JPanel resourcePanel = new JPanel(new BorderLayout(5, 0));
+                resourcePanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
+                
+                // Resource name and status
+                JPanel infoPanel = new JPanel(new BorderLayout());
+                infoPanel.add(new JLabel(type.toString()), BorderLayout.NORTH);
+                infoPanel.add(new JLabel(String.format("Required: %d  |  In Factory: %d  |  Available: %d", 
+                    required, inFactory, inPlayer)), BorderLayout.CENTER);
+                resourcePanel.add(infoPanel, BorderLayout.CENTER);
+                
+                // Transfer controls
+                if (inPlayer > 0) {
+                    JPanel transferPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+                    JSpinner amountSpinner = new JSpinner(new SpinnerNumberModel(
+                        Math.min(required - inFactory, inPlayer), // initial value
+                        1, // min
+                        inPlayer, // max
+                        1 // step
+                    ));
+                    amountSpinner.setPreferredSize(new Dimension(60, 25));
+                    
+                    JButton transferBtn = new JButton("Transfer");
+                    transferBtn.addActionListener(e -> {
+                        int amount = (Integer) amountSpinner.getValue();
+                        game.getPlayer().getInventory().removeResource(type, amount);
+                        factory.getInventory().addResource(type, amount);
+                        dialog.dispose();
+                        
+                        // Update displays
+                        controlPanel.updateInventoryDisplay(
+                            game.getPlayer().getInventory().getInventoryDisplay());
+                        updateMachineList();
+                    });
+                    
+                    transferPanel.add(amountSpinner);
+                    transferPanel.add(transferBtn);
+                    resourcePanel.add(transferPanel, BorderLayout.EAST);
+                }
+                
+                mainPanel.add(resourcePanel);
             }
-    
-            JScrollPane scrollPane = new JScrollPane(recipePanel);
-            scrollPane.setPreferredSize(new Dimension(300, Math.min(400, recipePanel.getPreferredSize().height)));
-            dialog.add(scrollPane);
-            dialog.pack();
-            dialog.setLocationRelativeTo(panel);
-            dialog.setVisible(true);
-        });
-    
-        panel.add(configButton);
+        }
+        
+        JScrollPane scrollPane = new JScrollPane(mainPanel);
+        scrollPane.setPreferredSize(new Dimension(400, Math.min(300, mainPanel.getPreferredSize().height)));
+        dialog.add(scrollPane);
+        
+        dialog.pack();
+        dialog.setLocationRelativeTo(panel);
+        dialog.setVisible(true);
     }
 
     private void handleResourceCollection(Machine machine) {
