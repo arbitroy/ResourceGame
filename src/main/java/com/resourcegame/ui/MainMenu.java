@@ -71,27 +71,7 @@ public class MainMenu extends JFrame {
     }
     
     private void showSettings() {
-        JDialog settingsDialog = new JDialog(this, "Settings", true);
-        settingsDialog.setSize(300, 200);
-        settingsDialog.setLocationRelativeTo(this);
-        
-        JPanel settingsPanel = new JPanel();
-        settingsPanel.setLayout(new BoxLayout(settingsPanel, BoxLayout.Y_AXIS));
-        settingsPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        
-        // Add settings controls here
-        JCheckBox soundCheckbox = new JCheckBox("Sound Effects", true);
-        JCheckBox musicCheckbox = new JCheckBox("Background Music", true);
-        JSlider volumeSlider = new JSlider(0, 100, 50);
-        
-        settingsPanel.add(soundCheckbox);
-        settingsPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-        settingsPanel.add(musicCheckbox);
-        settingsPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-        settingsPanel.add(new JLabel("Volume"));
-        settingsPanel.add(volumeSlider);
-        
-        settingsDialog.add(settingsPanel);
+        SettingsDialog settingsDialog = new SettingsDialog(this);
         settingsDialog.setVisible(true);
     }
     

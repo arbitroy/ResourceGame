@@ -1,6 +1,7 @@
 package com.resourcegame.ui;
 
 import com.resourcegame.core.Game;
+import com.resourcegame.core.GameSettings;
 import com.resourcegame.utils.Direction;
 import javax.swing.*;
 import java.awt.*;
@@ -15,6 +16,7 @@ public class GameUI extends JFrame implements GameUIListener {
     private MapPanel mapPanel;
     private ControlPanel controlPanel;
     private Timer gameTimer;
+    private Timer autosaveTimer;
 
     public GameUI() {
         this.game = new Game();
@@ -22,6 +24,7 @@ public class GameUI extends JFrame implements GameUIListener {
         initializeUI();
         setupControls();
         setupGameTimer();
+        setupAutosaveTimer();
     }
 
     private void initializeUI() {
@@ -100,7 +103,19 @@ public class GameUI extends JFrame implements GameUIListener {
         }
     }
 
-   
+    private void setupAutosaveTimer() {
+        int interval = GameSettings.getInstance().getAutosaveInterval();
+        autosaveTimer = new Timer(interval * 60 * 1000, e -> saveGameState("gamestate.txt"));
+        autosaveTimer.start();
+    }
+
+    public void updateAutosaveInterval(int minutes) {
+        if (autosaveTimer != null) {
+            autosaveTimer.stop();
+            autosaveTimer.setDelay(minutes * 60 * 1000);
+            autosaveTimer.start();
+        }
+    }
 
     @Override
     public void onGameUpdate() {
@@ -114,6 +129,9 @@ public class GameUI extends JFrame implements GameUIListener {
     public void dispose() {
         if (gameTimer != null) {
             gameTimer.stop();
+        }
+        if (autosaveTimer != null) {
+            autosaveTimer.stop();
         }
         super.dispose();
     }
