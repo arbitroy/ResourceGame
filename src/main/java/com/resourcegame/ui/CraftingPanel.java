@@ -236,23 +236,19 @@ public class CraftingPanel extends JPanel implements CraftingListener {
             Map.Entry<String, JPanel> entry = it.next();
             String craftingId = entry.getKey();
             JPanel panel = entry.getValue();
-
-            float progress = craftingSystem.getCraftingProgress(craftingId);
-
-            if (progress >= 1.0f) {
-                // Remove the panel from the right panel first
+            
+            Float progress = craftingSystem.getCraftingProgress(craftingId);
+            
+            if (progress == null || progress >= 1.0f) {
                 rightPanel.remove(panel);
-                // Remove from our tracking map
                 it.remove();
-                // Force a visual refresh
                 rightPanel.revalidate();
                 rightPanel.repaint();
             } else {
-                // Update progress bar if crafting is still in progress
                 for (Component component : panel.getComponents()) {
                     if (component instanceof JProgressBar) {
                         JProgressBar progressBar = (JProgressBar) component;
-                        progressBar.setValue((int) (progress * 100));
+                        progressBar.setValue((int)(progress * 100));
                         break;
                     }
                 }
