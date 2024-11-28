@@ -10,13 +10,15 @@ public class Recipe {
     private Map<ResourceType, Integer> ingredients;
     private Map<ResourceType, Integer> results;
     private int craftingTime;
+    private boolean isInstant;
 
-    public Recipe(String name, int craftingTime) {
+    public Recipe(String name, int craftingTime, boolean isInstant) {
         this.name = name;
         this.craftingTime = craftingTime;
         this.ingredients = new HashMap<>();
         this.results = new HashMap<>();
         this.description = "";
+        this.isInstant = isInstant;
     }
 
     public void addIngredient(ResourceType type, int amount) {
@@ -29,6 +31,9 @@ public class Recipe {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+    public boolean isInstant() {
+        return isInstant;
     }
 
     // Getters

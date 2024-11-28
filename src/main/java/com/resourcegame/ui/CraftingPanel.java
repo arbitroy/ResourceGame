@@ -28,7 +28,6 @@ public class CraftingPanel extends JPanel implements CraftingListener {
     private JTextArea inventoryDisplay;
     private ControlPanel controlPanel;
     private JPanel rightPanel; // Store reference to right panel
-    
 
     public CraftingPanel(CraftingSystem craftingSystem, Inventory playerInventory, ControlPanel controlPanel) {
         if (craftingSystem == null) {
@@ -194,9 +193,11 @@ public class CraftingPanel extends JPanel implements CraftingListener {
         details.append("└").append("─".repeat(42)).append("┘\n\n");
 
         // Crafting Time
-        details.append("⏱ Crafting Time: ")
-                .append(String.format("%.1f seconds", selected.getCraftingTime() / 1000.0))
-                .append("\n");
+        if (!selected.isInstant()) {
+            details.append("⏱ Crafting Time: ")
+                    .append(String.format("%.1f seconds", selected.getCraftingTime() / 1000.0))
+                    .append("\n");
+        }
 
         // Space Check
         int totalResults = selected.getResults().values().stream()
@@ -235,9 +236,9 @@ public class CraftingPanel extends JPanel implements CraftingListener {
             Map.Entry<String, JPanel> entry = it.next();
             String craftingId = entry.getKey();
             JPanel panel = entry.getValue();
-            
+
             float progress = craftingSystem.getCraftingProgress(craftingId);
-            
+
             if (progress >= 1.0f) {
                 // Remove the panel from the right panel first
                 rightPanel.remove(panel);
@@ -251,7 +252,7 @@ public class CraftingPanel extends JPanel implements CraftingListener {
                 for (Component component : panel.getComponents()) {
                     if (component instanceof JProgressBar) {
                         JProgressBar progressBar = (JProgressBar) component;
-                        progressBar.setValue((int)(progress * 100));
+                        progressBar.setValue((int) (progress * 100));
                         break;
                     }
                 }
@@ -263,10 +264,12 @@ public class CraftingPanel extends JPanel implements CraftingListener {
         Recipe selected = recipeList.getSelectedValue();
         if (selected == null)
             return;
-
+    
         String craftingId = "craft_" + (++craftingIdCounter);
         if (craftingSystem.startCrafting(selected, playerInventory, craftingId)) {
-            addProgressBar(selected, craftingId);
+            if (!selected.isInstant()) {
+                addProgressBar(selected, craftingId);
+            }
         }
     }
 
@@ -312,9 +315,9 @@ public class CraftingPanel extends JPanel implements CraftingListener {
     public void destroy() {
         if (updateTimer != null) {
             updateTimer.cancel();
-            updateTimer.purge();  // Add purge to clean up cancelled tasks
+            updateTimer.purge(); // Add purge to clean up cancelled tasks
         }
-        
+
         // Clear any remaining progress bars
         if (rightPanel != null) {
             rightPanel.removeAll();
@@ -369,10 +372,12 @@ public class CraftingPanel extends JPanel implements CraftingListener {
         SwingUtilities.invokeLater(() -> {
             statusLabel.setText("Successfully crafted: " + recipe.getName());
             statusLabel.setForeground(new Color(0, 100, 0));
-            
-            // Force refresh of panels
-            updateProgressBars();
-            
+
+            if (!recipe.isInstant()) {
+                // Force refresh of panels for timed recipes only
+                updateProgressBars();
+            }
+
             updateInventoryDisplay();
             if (controlPanel != null) {
                 controlPanel.updateInventoryDisplay(playerInventory.getInventoryDisplay());

@@ -61,14 +61,14 @@ public class CraftingSystem {
 
     private void initializeRecipes() {
         // Wood Processing
-        Recipe plankRecipe = new Recipe("Wooden Planks", 2000);
+        Recipe plankRecipe = new Recipe("Wooden Planks", 2000, true);
         plankRecipe.addIngredient(ResourceType.WOOD, 2);
         plankRecipe.addResult(ResourceType.WOODEN_PLANKS, 1);
         plankRecipe.setDescription("Process raw wood into sturdy wooden planks for construction");
         recipes.add(plankRecipe);
 
         // Stone Tool Crafting
-        Recipe stoneToolRecipe = new Recipe("Stone Tools", 3000);
+        Recipe stoneToolRecipe = new Recipe("Stone Tools", 3000, false);
         stoneToolRecipe.addIngredient(ResourceType.WOOD, 1); // Handle
         stoneToolRecipe.addIngredient(ResourceType.STONE, 2); // Tool head
         stoneToolRecipe.addResult(ResourceType.STONE_TOOLS, 1);
@@ -76,7 +76,7 @@ public class CraftingSystem {
         recipes.add(stoneToolRecipe);
 
         // Metal Processing
-        Recipe metalAlloyRecipe = new Recipe("Metal Alloy", 5000);
+        Recipe metalAlloyRecipe = new Recipe("Metal Alloy", 5000, false);
         metalAlloyRecipe.addIngredient(ResourceType.IRON, 2);
         metalAlloyRecipe.addIngredient(ResourceType.STONE, 1); // Flux material
         metalAlloyRecipe.addResult(ResourceType.METAL_ALLOY, 1);
@@ -84,7 +84,7 @@ public class CraftingSystem {
         recipes.add(metalAlloyRecipe);
 
         // Food Preservation
-        Recipe preservedFoodRecipe = new Recipe("Preserved Food", 4000);
+        Recipe preservedFoodRecipe = new Recipe("Preserved Food", 4000, false);
         preservedFoodRecipe.addIngredient(ResourceType.FOOD, 3);
         preservedFoodRecipe.addIngredient(ResourceType.WOOD, 1); // For smoking/drying
         preservedFoodRecipe.addResult(ResourceType.PRESERVED_FOOD, 2);
@@ -92,7 +92,7 @@ public class CraftingSystem {
         recipes.add(preservedFoodRecipe);
 
         // Construction Materials
-        Recipe buildingMaterialRecipe = new Recipe("Building Materials", 6000);
+        Recipe buildingMaterialRecipe = new Recipe("Building Materials", 6000, true);
         buildingMaterialRecipe.addIngredient(ResourceType.STONE, 2);
         buildingMaterialRecipe.addIngredient(ResourceType.WOODEN_PLANKS, 2); // Requires processed wood
         buildingMaterialRecipe.addResult(ResourceType.BUILDING_MATERIALS, 1);
@@ -100,7 +100,7 @@ public class CraftingSystem {
         recipes.add(buildingMaterialRecipe);
 
         // Luxury Items
-        Recipe luxuryItemRecipe = new Recipe("Luxury Items", 8000);
+        Recipe luxuryItemRecipe = new Recipe("Luxury Items", 8000, false);
         luxuryItemRecipe.addIngredient(ResourceType.GOLD, 1);
         luxuryItemRecipe.addIngredient(ResourceType.METAL_ALLOY, 1); // Requires processed metal
         luxuryItemRecipe.addResult(ResourceType.LUXURY_ITEMS, 1);
@@ -142,37 +142,77 @@ public class CraftingSystem {
             return false;
         }
 
-        try {
-            Map<ResourceType, Integer> removedResources = new HashMap<>();
-            
-            // Remove ingredients
-            for (Map.Entry<ResourceType, Integer> ingredient : recipe.getIngredients().entrySet()) {
-                ResourceType type = ingredient.getKey();
-                int amount = ingredient.getValue();
-                
-                if (!inventory.removeResource(type, amount)) {
-                    rollbackIngredients(inventory, removedResources);
-                    notifyCraftingFailed(recipe, "Failed to remove resources");
-                    return false;
-                }
-                removedResources.put(type, amount);
+        if (recipe.isInstant()) {
+            // For instant recipes, complete the crafting immediately
+            if (completeCrafting(recipe, inventory)) {
+                notifyCraftingCompleted(recipe);
+                return true;
+            } else {
+                notifyCraftingFailed(recipe, "Failed to add results to inventory");
+                return false;
             }
-
-            CraftingProcess process = new CraftingProcess(recipe, inventory, craftingId, removedResources);
-            activeProcesses.put(craftingId, process);
-
-            craftingExecutor.schedule(() -> {
-                completeCrafting(craftingId);
-            }, recipe.getCraftingTime(), TimeUnit.MILLISECONDS);
-
-            notifyCraftingStarted(recipe);
-            return true;
-
-        } catch (Exception e) {
-            System.out.println("Error starting craft: " + e.getMessage());
-            notifyCraftingFailed(recipe, "Unexpected error: " + e.getMessage());
-            return false;
+        } else {
+            // For timed recipes, start the crafting process
+            try {
+                Map<ResourceType, Integer> removedResources = new HashMap<>();
+                
+                // Remove ingredients
+                for (Map.Entry<ResourceType, Integer> ingredient : recipe.getIngredients().entrySet()) {
+                    ResourceType type = ingredient.getKey();
+                    int amount = ingredient.getValue();
+                    
+                    if (!inventory.removeResource(type, amount)) {
+                        rollbackIngredients(inventory, removedResources);
+                        notifyCraftingFailed(recipe, "Failed to remove resources");
+                        return false;
+                    }
+                    removedResources.put(type, amount);
+                }
+    
+                CraftingProcess process = new CraftingProcess(recipe, inventory, craftingId, removedResources);
+                activeProcesses.put(craftingId, process);
+    
+                craftingExecutor.schedule(() -> {
+                    completeCrafting(craftingId);
+                }, recipe.getCraftingTime(), TimeUnit.MILLISECONDS);
+    
+                notifyCraftingStarted(recipe);
+                return true;
+    
+            } catch (Exception e) {
+                System.out.println("Error starting craft: " + e.getMessage());
+                notifyCraftingFailed(recipe, "Unexpected error: " + e.getMessage());
+                return false;
+            }
         }
+
+    }
+
+    private boolean completeCrafting(Recipe recipe, Inventory inventory) {
+        boolean success = true;
+    
+        // Remove ingredients
+        for (Map.Entry<ResourceType, Integer> ingredient : recipe.getIngredients().entrySet()) {
+            ResourceType type = ingredient.getKey();
+            int amount = ingredient.getValue();
+            
+            if (!inventory.removeResource(type, amount)) {
+                success = false;
+                break;
+            }
+        }
+    
+        if (success) {
+            // Add results to inventory
+            for (Map.Entry<ResourceType, Integer> result : recipe.getResults().entrySet()) {
+                if (!inventory.addResource(result.getKey(), result.getValue())) {
+                    success = false;
+                    break;
+                }
+            }
+        }
+    
+        return success;
     }
 
 
