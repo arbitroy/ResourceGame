@@ -12,16 +12,26 @@ public class Harvester extends Machine {
     private ResourceType targetResource;
     private static final int BASE_HARVEST_INTERVAL = 1000; // 1 second base interval
     private static final double FULL_INVENTORY_THRESHOLD = 0.9; // 90% full
+    private boolean harvestedThisCycle = false;
     
     public Harvester(Position position, MachineType type) {
         super(position, type);
-        this.status = MachineStatus.IDLE;
+        this.status = MachineStatus.NEEDS_CONFIG;
     }
     
     @Override
     public void update(GameMap gameMap) {
         if (targetResource == null) {
             setStatus(MachineStatus.NEEDS_CONFIG);
+            return;
+        }
+
+        if (!canBeReconfigured() && status == MachineStatus.NEEDS_CONFIG) {
+            setStatus(MachineStatus.CONFIG_LIMIT_REACHED);
+            return;
+        }
+
+        if (!checkMaintenance()) {
             return;
         }
         
@@ -38,6 +48,7 @@ public class Harvester extends Machine {
         int harvestInterval = BASE_HARVEST_INTERVAL / processingSpeed;
         
         if (currentTime - lastProcessTime >= harvestInterval) {
+            harvestedThisCycle = false;  // Reset for new cycle
             if (harvestAdjacentResources(gameMap)) {
                 setStatus(MachineStatus.WORKING);
             } else {
@@ -45,6 +56,8 @@ public class Harvester extends Machine {
             }
             lastProcessTime = currentTime;
         }
+
+       
     }
     
     private boolean harvestAdjacentResources(GameMap gameMap) {
@@ -61,12 +74,15 @@ public class Harvester extends Machine {
                     inventory.addResource(targetResource, 1);
                     tile.getResource().harvest();
                     harvestedAny = true;
-                } else {
-                    break;
+                    
+                    // Only increment operations if we actually harvested something
+                    if (!harvestedThisCycle) {
+                        harvestedThisCycle = true;
+                        incrementOperations();
+                    }
                 }
             }
         }
-        
         return harvestedAny;
     }
 
@@ -75,6 +91,8 @@ public class Harvester extends Machine {
         switch (status) {
             case NEEDS_CONFIG:
                 return "Needs target resource";
+            case CONFIG_LIMIT_REACHED:
+                return "Cannot be reconfigured";
             case INVENTORY_FULL:
                 return "Inventory full! (" + inventory.getTotalItems() + "/" + inventoryCapacity + ")";
             case INVENTORY_NEARLY_FULL:
@@ -83,14 +101,22 @@ public class Harvester extends Machine {
                 return "No harvestable " + targetResource + " nearby";
             case WORKING:
                 return "Harvesting " + targetResource;
+            case NEEDS_MAINTENANCE:
+                return "Needs maintenance! (" + operationsSinceMaintenance + " operations)";
             default:
                 return "Idle";
         }
     }
 
     public void setTargetResource(ResourceType resource) {
-        this.targetResource = resource;
-        setStatus(resource != null ? MachineStatus.IDLE : MachineStatus.NEEDS_CONFIG);
+        if (!canBeReconfigured()) {
+            return;
+        }
+        if (this.targetResource != resource) {
+            this.targetResource = resource;
+            incrementConfigurationCount();
+            setStatus(resource != null ? MachineStatus.IDLE : MachineStatus.NEEDS_CONFIG);
+        }
     }
 
     public ResourceType getTargetResource() {

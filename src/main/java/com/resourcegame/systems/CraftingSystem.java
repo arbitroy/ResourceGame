@@ -31,7 +31,6 @@ public class CraftingSystem {
     private static class CraftingProcess {
         private final Recipe recipe;
         private final Inventory inventory;
-        private final String id;
         private final long startTime;
         private final Map<ResourceType, Integer> removedResources;
 
@@ -39,7 +38,6 @@ public class CraftingSystem {
                 Map<ResourceType, Integer> removedResources) {
             this.recipe = recipe;
             this.inventory = inventory;
-            this.id = id;
             this.startTime = System.currentTimeMillis();
             this.removedResources = new HashMap<>(removedResources);
         }
@@ -50,10 +48,6 @@ public class CraftingSystem {
 
         public Inventory getInventory() {
             return inventory;
-        }
-
-        public String getId() {
-            return id;
         }
 
         public long getStartTime() {

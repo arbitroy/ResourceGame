@@ -3,7 +3,6 @@ package com.resourcegame.ui;
 import com.resourcegame.core.GameSettings;
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
 import javax.swing.event.*;
 
 public class SettingsDialog extends JDialog {
@@ -166,10 +165,6 @@ public class SettingsDialog extends JDialog {
         if (!settings.isMusicEnabled()) {
             // Stop background music
         }
-        
-        // Apply volume level
-        float volume = settings.getVolumeLevel() / 100f;
-        // Update volume for sound system
         
         // Update autosave timer
         if (getOwner() instanceof GameUI) {

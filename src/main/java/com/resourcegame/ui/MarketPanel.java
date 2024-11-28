@@ -4,20 +4,17 @@ import com.resourcegame.systems.Market;
 import com.resourcegame.utils.MachineType;
 import com.resourcegame.utils.ResourceType;
 import com.resourcegame.entities.Inventory;
+import com.resourcegame.entities.Machine;
 import com.resourcegame.core.Game;
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
 import javax.swing.border.EmptyBorder;
 import java.util.HashMap;
 import java.util.Map;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 
 public class MarketPanel extends JPanel {
     private final Market market;
     private final Inventory playerInventory;
-    private final Game game;
     private final ControlPanel controlPanel;
     private final JLabel moneyLabel;
     private final Map<ResourceType, JSpinner> quantitySpinners;
@@ -27,9 +24,7 @@ public class MarketPanel extends JPanel {
     private Timer updateTimer;
     private JTabbedPane tabbedPane;
     private Map<MachineType, JButton> machineButtons;
-
     public MarketPanel(Game game, Market market, Inventory playerInventory, ControlPanel controlPanel) {
-        this.game = game;  // Initialize Game reference
         this.market = market;
         this.playerInventory = playerInventory;
         this.controlPanel = controlPanel;
@@ -107,53 +102,153 @@ public class MarketPanel extends JPanel {
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.LIGHT_GRAY),
                 new EmptyBorder(10, 10, 10, 10)));
-
-        // Machine header
+    
+        // Header with name and specs
         JPanel headerPanel = new JPanel(new BorderLayout());
         JLabel nameLabel = new JLabel(formatMachineName(type.name()));
         nameLabel.setFont(new Font("Arial", Font.BOLD, 14));
         headerPanel.add(nameLabel, BorderLayout.WEST);
-
-        // Price display
+    
+        // Price section with comparison if fragile
+        JPanel pricePanel = new JPanel(new GridLayout(type.isFragile() ? 2 : 1, 1));
+        if (type.isFragile()) {
+            MachineType regularVersion = getRegularVersion(type);
+            JLabel savingsLabel = new JLabel(String.format("Save $%d",
+                    regularVersion.getBasePrice() - type.getBasePrice()));
+            savingsLabel.setForeground(new Color(0, 128, 0));
+            savingsLabel.setFont(new Font("Arial", Font.ITALIC, 12));
+            pricePanel.add(savingsLabel);
+        }
+    
         JLabel priceLabel = new JLabel("Price: $" + type.getBasePrice());
         priceLabel.setFont(new Font("Arial", Font.PLAIN, 12));
-        headerPanel.add(priceLabel, BorderLayout.EAST);
-
+        pricePanel.add(priceLabel);
+        headerPanel.add(pricePanel, BorderLayout.EAST);
         card.add(headerPanel, BorderLayout.NORTH);
-
-        // Description
+    
+        // Description and specs panel
+        JPanel detailsPanel = new JPanel();
+        detailsPanel.setLayout(new BoxLayout(detailsPanel, BoxLayout.Y_AXIS));
+    
         JTextArea description = new JTextArea(type.getDescription());
         description.setWrapStyleWord(true);
         description.setLineWrap(true);
         description.setOpaque(false);
         description.setEditable(false);
         description.setFont(new Font("Arial", Font.PLAIN, 12));
-        card.add(description, BorderLayout.CENTER);
-
-        // Purchase button
+        detailsPanel.add(description);
+        detailsPanel.add(Box.createVerticalStrut(10));
+    
+        // Specifications panel
+        JPanel specsPanel = new JPanel(new GridLayout(0, 1, 5, 5));
+        specsPanel.setBorder(BorderFactory.createTitledBorder("Specifications"));
+    
+        String capacityText = String.format("Storage: %d items",
+                type.toString().contains("ADVANCED") ? 200 : 100);
+        specsPanel.add(new JLabel(capacityText));
+    
+        String speedText = String.format("Speed: %sx",
+                type.toString().contains("ADVANCED") ? "2" : "1");
+        specsPanel.add(new JLabel(speedText));
+    
+        String configText = type.getConfigurationLimit() == 0 ? "Configurations: Unlimited"
+                : String.format("Configurations: %d", type.getConfigurationLimit());
+        specsPanel.add(new JLabel(configText));
+    
+        // Maintenance info for fragile machines
+        if (type.isFragile()) {
+            JPanel maintenancePanel = new JPanel(new GridLayout(3, 1));
+            maintenancePanel.setBorder(BorderFactory.createTitledBorder("Maintenance Details"));
+    
+            JLabel breakdownLabel = new JLabel(String.format("Breakdown chance: %.0f%%",
+                    type.getBreakdownChance() * 100));
+            JLabel maintenanceFreqLabel = new JLabel(String.format("Maintenance every %d operations",
+                    Machine.FRAGILE_MAINTENANCE_THRESHOLD));
+    
+            int baseMaintCost = (int) (type.getBasePrice() * 0.1);
+            JLabel maintCostLabel = new JLabel(String.format("Base maintenance cost: $%d",
+                    baseMaintCost));
+    
+            maintenancePanel.add(breakdownLabel);
+            maintenancePanel.add(maintenanceFreqLabel);
+            maintenancePanel.add(maintCostLabel);
+            specsPanel.add(maintenancePanel);
+        }
+    
+        detailsPanel.add(specsPanel);
+        card.add(detailsPanel, BorderLayout.CENTER);
+    
+        // Purchase button panel
+        JPanel buttonPanel = new JPanel(new BorderLayout());
+        buttonPanel.setBorder(new EmptyBorder(10, 0, 0, 0));
+    
+        if (type.isFragile()) {
+            JLabel warningLabel = new JLabel("⚠ Requires maintenance every " + 
+                Machine.FRAGILE_MAINTENANCE_THRESHOLD + " operations");
+            warningLabel.setForeground(new Color(255, 140, 0));
+            warningLabel.setFont(new Font("Arial", Font.ITALIC, 11));
+            buttonPanel.add(warningLabel, BorderLayout.NORTH);
+        }
+    
         JButton buyButton = new JButton("Purchase Machine");
         buyButton.setBackground(new Color(46, 204, 113));
         buyButton.setForeground(Color.WHITE);
         buyButton.addActionListener(e -> handleMachinePurchase(type));
         machineButtons.put(type, buyButton);
-
-        JPanel buttonPanel = new JPanel(new BorderLayout());
-        buttonPanel.setBorder(new EmptyBorder(10, 0, 0, 0));
         buttonPanel.add(buyButton, BorderLayout.CENTER);
+    
         card.add(buttonPanel, BorderLayout.SOUTH);
-
         return card;
+    }
+
+    private MachineType getRegularVersion(MachineType fragileType) {
+        switch (fragileType) {
+            case FRAGILE_HARVESTER:
+                return MachineType.BASIC_HARVESTER;
+            case FRAGILE_FACTORY:
+                return MachineType.BASIC_FACTORY;
+            default:
+                return fragileType;
+        }
+    }
+
+    private String formatMachineName(String name) {
+        return name.replace("_", " ").toLowerCase()
+                .substring(0, 1).toUpperCase() +
+                name.replace("_", " ").toLowerCase().substring(1);
     }
 
     private void handleMachinePurchase(MachineType type) {
         int price = type.getBasePrice();
-        
+    
         if (playerInventory.getMoney() >= price) {
             if (market.purchaseMachine(type, playerInventory)) {
                 updateDisplay();
-                showNotification("Successfully purchased " + formatMachineName(type.name()), true);
                 
-                // Update both the market panel and control panel
+                int response = JOptionPane.showConfirmDialog(
+                    this,
+                    "Machine purchased! Would you like to place it now?",
+                    "Place Machine",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE
+                );
+    
+                if (response == JOptionPane.YES_OPTION) {
+                    // Close the market panel first
+                    Window window = SwingUtilities.getWindowAncestor(this);
+                    if (window instanceof JDialog) {
+                        window.dispose();
+                    }
+                    
+                    // Start placement process
+                    SwingUtilities.invokeLater(() -> {
+                        controlPanel.startMachinePlacement(type);
+                    });
+                } else {
+                    showNotification("Machine added to inventory. You can place it later from the Machine Management panel.", true);
+                }
+    
+                // Update displays
                 if (controlPanel != null) {
                     controlPanel.updateInventoryDisplay(playerInventory.getInventoryDisplay());
                     controlPanel.updateMoneyDisplay(playerInventory.getMoney());
@@ -164,31 +259,6 @@ public class MarketPanel extends JPanel {
         } else {
             showNotification("Not enough money to purchase this machine", false);
         }
-    }
-
-    private void showPlacementDialog(MachineType type) {
-        JOptionPane.showMessageDialog(
-                this,
-                "Click on an empty tile to place your new machine.",
-                "Place Machine",
-                JOptionPane.INFORMATION_MESSAGE);
-
-        // This will trigger the placement mode in the game
-        game.startMachinePlacement(type, () -> {
-            // This callback is called when placement is successful
-            if (market.finalizeMachinePurchase(type, playerInventory)) {
-                updateDisplay();
-                showNotification("Successfully purchased and placed " + formatMachineName(type.name()), true);
-            } else {
-                showNotification("Failed to complete purchase", false);
-            }
-        });
-    }
-
-    private String formatMachineName(String name) {
-        return name.replace("_", " ").toLowerCase()
-                .substring(0, 1).toUpperCase() +
-                name.replace("_", " ").toLowerCase().substring(1);
     }
 
     private JPanel createResourcePanel(ResourceType type) {
@@ -350,8 +420,8 @@ public class MarketPanel extends JPanel {
             }
         }
 
-         // Update machine buttons
-         for (MachineType type : MachineType.values()) {
+        // Update machine buttons
+        for (MachineType type : MachineType.values()) {
             JButton button = machineButtons.get(type);
             if (button != null) {
                 button.setEnabled(playerInventory.getMoney() >= type.getBasePrice());

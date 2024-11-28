@@ -16,7 +16,6 @@ public class ControlPanel extends JPanel {
     private JButton craftButton;
     private JButton marketButton;
     private JLabel moneyLabel;
-    private JButton placeMachineButton;
     private JButton manageMachinesButton;
     private static final int TILE_SIZE = 40;
 

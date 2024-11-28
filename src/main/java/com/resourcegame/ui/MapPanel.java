@@ -8,7 +8,6 @@ import com.resourcegame.utils.Position;
 import com.resourcegame.utils.ResourceType;
 import com.resourcegame.entities.Factory;
 import com.resourcegame.entities.Harvester;
-import com.resourcegame.entities.Inventory;
 import com.resourcegame.entities.Machine;
 import com.resourcegame.entities.Resource;
 import com.resourcegame.systems.Recipe;
@@ -86,79 +85,6 @@ public class MapPanel extends JPanel {
             gameMap.setSelectedTile(clickedPos);
             game.getControlPanel().updateHarvestButton(true);
             showStatusMessage("Resource selected. Double-click or press Harvest to collect.");
-        }
-    }
-
-    private void transferItems(Position machinePos, Machine machine) {
-        JPopupMenu menu = new JPopupMenu();
-        Inventory machineInventory = machine.getInventory();
-        Inventory playerInventory = game.getPlayer().getInventory();
-
-        // Transfer FROM machine TO player
-        if (machineInventory.getTotalItems() > 0) {
-            JMenu takeMenu = new JMenu("Take Items");
-
-            for (ResourceType type : ResourceType.values()) {
-                int count = machineInventory.getResourceCount(type);
-                if (count > 0) {
-                    JMenuItem item = new JMenuItem(String.format("%s (%d)", type, count));
-                    item.addActionListener(e -> {
-                        int amount = promptForAmount(count);
-                        if (amount > 0 && playerInventory.hasSpace(amount)) {
-                            machineInventory.removeResource(type, amount);
-                            playerInventory.addResource(type, amount);
-                            game.getControlPanel().updateInventoryDisplay(
-                                    playerInventory.getInventoryDisplay());
-                            repaint();
-                        }
-                    });
-                    takeMenu.add(item);
-                }
-            }
-            menu.add(takeMenu);
-        }
-
-        // Transfer FROM player TO machine (only for factories)
-        if (machine instanceof Factory) {
-            JMenu giveMenu = new JMenu("Give Items");
-
-            for (ResourceType type : ResourceType.values()) {
-                int count = playerInventory.getResourceCount(type);
-                if (count > 0) {
-                    JMenuItem item = new JMenuItem(String.format("%s (%d)", type, count));
-                    item.addActionListener(e -> {
-                        int amount = promptForAmount(count);
-                        if (amount > 0 && machineInventory.hasSpace(amount)) {
-                            playerInventory.removeResource(type, amount);
-                            machineInventory.addResource(type, amount);
-                            game.getControlPanel().updateInventoryDisplay(
-                                    playerInventory.getInventoryDisplay());
-                            repaint();
-                        }
-                    });
-                    giveMenu.add(item);
-                }
-            }
-            menu.add(giveMenu);
-        }
-
-        Point p = MouseInfo.getPointerInfo().getLocation();
-        SwingUtilities.convertPointFromScreen(p, this);
-        menu.show(this, p.x, p.y);
-    }
-
-    private int promptForAmount(int maxAmount) {
-        String input = JOptionPane.showInputDialog(
-                this,
-                String.format("Enter amount (1-%d):", maxAmount),
-                "Transfer Amount",
-                JOptionPane.QUESTION_MESSAGE);
-
-        try {
-            int amount = Integer.parseInt(input);
-            return Math.min(Math.max(1, amount), maxAmount);
-        } catch (NumberFormatException | NullPointerException e) {
-            return 0;
         }
     }
 

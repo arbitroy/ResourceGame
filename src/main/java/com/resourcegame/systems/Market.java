@@ -13,8 +13,6 @@ public class Market {
     private Map<ResourceType, Integer> stock;
     private static final int MAX_STOCK = 1000;
     private Map<MachineType, Integer> machinePrices;
-    private MachineManager machineManager;
-
     public Market() {
         this.buyPrices = new HashMap<>();
         this.sellPrices = new HashMap<>();
@@ -141,6 +139,5 @@ public class Market {
     }
 
     public void setMachineManager(MachineManager machineManager) {
-        this.machineManager = machineManager;
     }
 }
