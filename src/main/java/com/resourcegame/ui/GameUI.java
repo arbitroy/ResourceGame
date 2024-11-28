@@ -69,7 +69,11 @@ public class GameUI extends JFrame implements GameUIListener {
                         game.movePlayer(Direction.RIGHT);
                         break;
                     case KeyEvent.VK_SPACE:
-                        game.attemptHarvest();
+                        // Try to interact with adjacent machine first
+                        if (!game.interactWithAdjacent()) {
+                            // If no machine interaction, try harvesting
+                            game.attemptHarvest();
+                        }
                         break;
                 }
             }

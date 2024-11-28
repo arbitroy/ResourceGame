@@ -12,10 +12,14 @@ import com.resourcegame.utils.Direction;
 import com.resourcegame.utils.MachineType;
 import com.resourcegame.utils.Position;
 import com.resourcegame.utils.ResourceType;
+import com.resourcegame.utils.TileType;
 import com.resourcegame.ui.ControlPanel;
 import com.resourcegame.ui.GameUIListener;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 public class Game {
     private GameMap map;
@@ -87,22 +91,64 @@ public class Game {
                 map.getTile(newPos).isWalkable();
     }
 
-
     public void startMachinePlacement(MachineType type, Runnable onSuccess) {
         this.pendingPlacement = type;
         this.placementCallback = onSuccess;
     }
 
-
     public boolean placeMachine(MachineType type, Position position) {
         Tile tile = map.getTile(position);
         if (tile != null && tile.isWalkable() && !tile.hasMachine()) {
+            // Check for resources if it's a harvester
+            if (type.toString().contains("HARVESTER")) {
+                boolean hasAdjacentResource = position.hasAdjacentResourceOfType(map, null);
+                if (!hasAdjacentResource) {
+                    SwingUtilities.invokeLater(() -> {
+                        int response = JOptionPane.showConfirmDialog(null,
+                                "No resources found adjacent to this location.\n" +
+                                        "Would you like to try placing the harvester in a different location?",
+                                "Invalid Location",
+                                JOptionPane.YES_NO_OPTION,
+                                JOptionPane.WARNING_MESSAGE);
+
+                        if (response == JOptionPane.YES_OPTION) {
+                            // Restart placement process
+                            controlPanel.startMachinePlacement(type);
+                        } else {
+                            // Cancel placement and return machine to inventory
+                            getPlayer().getInventory().addMachine(type);
+                        }
+                    });
+                    return false;
+                }
+            } else if (type.toString().contains("FACTORY")) {
+                // Check if tile is a resource tile
+                if (tile.getType() != TileType.EMPTY) {
+                    SwingUtilities.invokeLater(() -> {
+                        int response = JOptionPane.showConfirmDialog(null,
+                                "Factories can only be placed on empty tiles.\n" +
+                                        "Would you like to try placing the factory in a different location?",
+                                "Invalid Location",
+                                JOptionPane.YES_NO_OPTION,
+                                JOptionPane.WARNING_MESSAGE);
+
+                        if (response == JOptionPane.YES_OPTION) {
+                            // Restart placement process
+                            controlPanel.startMachinePlacement(type);
+                        } else {
+                            // Cancel placement and return machine to inventory
+                            getPlayer().getInventory().addMachine(type);
+                        }
+                    });
+                    return false;
+                }
+            }
+
             Machine machine = machineManager.createMachine(type, position);
             if (machine != null) {
                 tile.setMachine(machine);
                 notifyUIUpdate();
-                
-                // Execute callback if this was part of a placement operation
+
                 if (placementCallback != null && type == pendingPlacement) {
                     placementCallback.run();
                     placementCallback = null;
@@ -165,8 +211,6 @@ public class Game {
         }
     }
 
-
-
     // Add new method for configuring machines
     public void configureMachine(Position position, Object configuration) {
         Machine machine = machineManager.getMachineAt(position);
@@ -190,11 +234,35 @@ public class Game {
         }
     }
 
-     // Add machine manager getter
-     public MachineManager getMachineManager() {
+    // Add machine manager getter
+    public MachineManager getMachineManager() {
         return machineManager;
     }
 
+
+    public Machine getAdjacentMachine() {
+        Position playerPos = player.getPosition();
+        for (Position adjacent : playerPos.getAdjacentPositions()) {
+            Tile tile = map.getTile(adjacent);
+            if (tile != null && tile.hasMachine()) {
+                return tile.getMachine();
+            }
+        }
+        return null;
+    }
+    
+    public boolean interactWithAdjacent() {
+        Machine adjacentMachine = getAdjacentMachine();
+        if (adjacentMachine instanceof Factory) {
+            // Open factory inventory screen
+            if (controlPanel != null) {
+                controlPanel.openFactoryInventory((Factory)adjacentMachine);
+            }
+            return true;
+        }
+        return false;
+    }
+    
     // Update the game loop or timer
     public void update() {
         machineManager.updateMachines();

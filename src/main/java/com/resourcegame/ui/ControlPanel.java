@@ -1,6 +1,7 @@
 package com.resourcegame.ui;
 
 import com.resourcegame.core.Game;
+import com.resourcegame.entities.Factory;
 import com.resourcegame.utils.MachineType;
 import com.resourcegame.utils.Position;
 import com.resourcegame.utils.ResourceType;
@@ -292,16 +293,17 @@ public class ControlPanel extends JPanel {
                 }
             }
         }
-    
+
         JOptionPane.showMessageDialog(this,
-                "Click on an empty tile to place the machine.",
+                "Click on an empty tile to place the machine.\n" +
+                        "For harvesters, choose a location adjacent to resources.",
                 "Machine Placement",
                 JOptionPane.INFORMATION_MESSAGE);
-    
+
         // Create holder for the listeners so they can reference each other
         final MouseAdapter[] placementListenerHolder = new MouseAdapter[1];
         final KeyAdapter[] escapeListenerHolder = new KeyAdapter[1];
-    
+
         // Create escape key listener
         escapeListenerHolder[0] = new KeyAdapter() {
             @Override
@@ -318,6 +320,10 @@ public class ControlPanel extends JPanel {
                                 mapPanel.removeMouseListener(placementListenerHolder[0]);
                                 frame.removeKeyListener(this);
                                 frame.requestFocus();
+
+                                // Return machine to inventory on cancel
+                                game.getPlayer().getInventory().addMachine(type);
+
                                 JOptionPane.showMessageDialog(frame,
                                         "Machine placement cancelled",
                                         "Cancelled",
@@ -329,7 +335,7 @@ public class ControlPanel extends JPanel {
                 }
             }
         };
-    
+
         // Create placement listener
         placementListenerHolder[0] = new MouseAdapter() {
             @Override
@@ -338,70 +344,75 @@ public class ControlPanel extends JPanel {
                 int tileX = e.getX() / TILE_SIZE;
                 int tileY = e.getY() / TILE_SIZE;
                 Position pos = new Position(tileX, tileY);
-        
-                // Always remove the listener first, regardless of success
+
+                // Always remove the listener first
                 mapPanel.removeMouseListener(this);
-        
+
                 if (game.placeMachine(type, pos)) {
                     JOptionPane.showMessageDialog(mapPanel,
                             "Machine placed successfully!",
                             "Success",
                             JOptionPane.INFORMATION_MESSAGE);
-                } else {
-                    JOptionPane.showMessageDialog(mapPanel,
-                            "Cannot place machine here!",
-                            "Invalid Location",
-                            JOptionPane.WARNING_MESSAGE);
+
+                    // Remove escape listener after successful placement
+                    Window window = SwingUtilities.getWindowAncestor(mapPanel);
+                    if (window instanceof JFrame) {
+                        JFrame frame = (JFrame) window;
+                        frame.removeKeyListener(escapeListenerHolder[0]);
+                        frame.requestFocus();
+                    }
                 }
-        
-                // Request focus back to the game frame and cleanup
-                Window window = SwingUtilities.getWindowAncestor(mapPanel);
-                if (window instanceof JFrame) {
-                    JFrame frame = (JFrame) window;
-                    frame.removeKeyListener(escapeListenerHolder[0]);
-                    frame.requestFocus();
-                }
-            }
-    
-            // Add mouse moved handler to cleanup on any mouse movement out of the panel
-            @Override
-            public void mouseExited(MouseEvent e) {
-                MapPanel mapPanel = (MapPanel) e.getComponent();
-                mapPanel.removeMouseListener(this);
-                
-                // Request focus back to the game frame
-                Window window = SwingUtilities.getWindowAncestor(mapPanel);
-                if (window instanceof JFrame) {
-                    JFrame frame = (JFrame) window;
-                    frame.removeKeyListener(escapeListenerHolder[0]);
-                    frame.requestFocus();
-                }
+                // Note: Don't show failure message here as it's handled in placeMachine
             }
         };
-    
+
         // Add listeners to the game window
         if (window instanceof JFrame) {
             JFrame frame = (JFrame) window;
-            // Add escape key listener
             frame.addKeyListener(escapeListenerHolder[0]);
-            // Add mouse listener to MapPanel
             Component[] components = frame.getContentPane().getComponents();
             for (Component component : components) {
                 if (component instanceof MapPanel) {
-                    // Start the placement operation in Game
                     game.startMachinePlacement(type, () -> {
-                        // Success callback - nothing needed here as the mouseClicked handler
-                        // will show the success message
+                        // Success callback
                     });
                     ((MapPanel) component).addMouseListener(placementListenerHolder[0]);
                     break;
                 }
             }
-            // Ensure frame has focus
             frame.requestFocus();
         }
     }
 
+    public void openFactoryInventory(Factory factory) {
+        JDialog dialog = new JDialog(
+                (Frame) SwingUtilities.getWindowAncestor(this),
+                "Factory Inventory",
+                true);  // Changed to use Frame parent and made modal
+        
+        FactoryInventoryPanel factoryPanel = new FactoryInventoryPanel(
+                factory,
+                game.getPlayer().getInventory(),
+                this);
+        
+        dialog.setContentPane(factoryPanel);
+        dialog.setSize(600, 400);
+        dialog.setLocationRelativeTo(this);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        
+        // Cleanup when dialog is closed
+        dialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                factoryPanel.destroy();
+            }
+        });
+        
+        dialog.setVisible(true);
+    }
+    public Game getGame() {
+        return game;
+    }
 }
 
 @FunctionalInterface
