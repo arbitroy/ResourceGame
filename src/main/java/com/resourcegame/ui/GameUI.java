@@ -27,12 +27,13 @@ public class GameUI extends JFrame implements GameUIListener {
         setupAutosaveTimer();
     }
 
+    
     private void initializeUI() {
         setTitle("Resource Management Game");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        mapPanel = new MapPanel(game.getMap(), game); // Pass game reference
+        createMapPanel();
         controlPanel = new ControlPanel(game);
         game.setControlPanel(controlPanel);
 
@@ -51,6 +52,7 @@ public class GameUI extends JFrame implements GameUIListener {
         setFocusable(true);
     }
 
+    
     private void setupControls() {
         addKeyListener(new KeyAdapter() {
             @Override
@@ -96,9 +98,36 @@ public class GameUI extends JFrame implements GameUIListener {
         }
     }
 
+    private void createMapPanel() {
+        mapPanel = new MapPanel(game.getMap(), game);
+        game.addUIListener(this); // Ensure UI listener is registered
+    }
+
     public void loadGameState(String filename) {
         try {
             GameState.loadGame(game, filename);
+            
+            // Recreate UI components
+            remove(mapPanel); // Remove old map panel
+            createMapPanel(); // Create new map panel
+            add(mapPanel, BorderLayout.CENTER);
+            
+            // Update control panel
+            if (controlPanel != null) {
+                controlPanel.updateInventoryDisplay(game.getPlayer().getInventory().getInventoryDisplay());
+                controlPanel.updateMarketButton(
+                    game.getPlayer().getPosition().isAdjacent(game.getMap().getMarketPosition())
+                );
+            }
+            
+            // Force a complete UI refresh
+            revalidate();
+            repaint();
+            requestFocus(); // Ensure keyboard focus is restored
+
+            // Trigger an immediate UI update
+            onGameUpdate();
+            
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this,
                     "Failed to load game: " + e.getMessage(),
@@ -124,8 +153,12 @@ public class GameUI extends JFrame implements GameUIListener {
     @Override
     public void onGameUpdate() {
         // Update UI components when game state changes
-        mapPanel.updatePlayerPosition(game.getPlayer().getPosition());
-        controlPanel.updateInventoryDisplay(game.getPlayer().getInventory().getInventoryDisplay());
+        if (mapPanel != null) {
+            mapPanel.updatePlayerPosition(game.getPlayer().getPosition());
+        }
+        if (controlPanel != null) {
+            controlPanel.updateInventoryDisplay(game.getPlayer().getInventory().getInventoryDisplay());
+        }
         repaint();
     }
 

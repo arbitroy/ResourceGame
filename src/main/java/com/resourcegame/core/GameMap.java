@@ -47,15 +47,95 @@ public class GameMap {
         // Set market at bottom-right
         grid[width-1][height-1].setType(TileType.MARKET);
 
-        // Add random base resources
+        // Create a path from start to market
+        ensurePathExists();
+
+        // Add random resources while preserving path
         for (int i = 0; i < width * height / 4; i++) {
             int x = random.nextInt(width);
             int y = random.nextInt(height);
-            if (grid[x][y].getType() == TileType.EMPTY) {
+            Position pos = new Position(x, y);
+            
+            // Only place resource if:
+            // 1. Tile is empty
+            // 2. Not adjacent to start or market
+            // 3. Won't block the path
+            if (grid[x][y].getType() == TileType.EMPTY &&
+                !pos.isAdjacent(startingPosition) &&
+                !pos.isAdjacent(new Position(width-1, height-1)) &&
+                !wouldBlockPath(pos)) {
+                
                 grid[x][y].setType(TileType.RESOURCE);
                 grid[x][y].setResource(new Resource(getRandomBaseResource()));
             }
         }
+    }
+
+    private void ensurePathExists() {
+        // Create a simple path from start to market
+        int x = 0, y = 0;
+        
+        // Move right
+        while (x < width - 1) {
+            grid[x][y].setType(TileType.EMPTY);
+            x++;
+        }
+        
+        // Move down
+        while (y < height - 1) {
+            grid[x][y].setType(TileType.EMPTY);
+            y++;
+        }
+    }
+
+    private boolean wouldBlockPath(Position pos) {
+        // Temporarily make the tile unwalkable
+        TileType originalType = grid[pos.getX()][pos.getY()].getType();
+        grid[pos.getX()][pos.getY()].setType(TileType.RESOURCE);
+
+        // Check if path still exists
+        boolean pathExists = pathExists(startingPosition, new Position(width-1, height-1));
+
+        // Restore original tile type
+        grid[pos.getX()][pos.getY()].setType(originalType);
+
+        return !pathExists;
+    }
+
+    private boolean pathExists(Position start, Position end) {
+        boolean[][] visited = new boolean[width][height];
+        return findPath(start, end, visited);
+    }
+
+    private boolean findPath(Position current, Position end, boolean[][] visited) {
+        if (current.getX() < 0 || current.getX() >= width ||
+            current.getY() < 0 || current.getY() >= height ||
+            visited[current.getX()][current.getY()] ||
+            !grid[current.getX()][current.getY()].isWalkable()) {
+            return false;
+        }
+
+        if (current.getX() == end.getX() && current.getY() == end.getY()) {
+            return true;
+        }
+
+        visited[current.getX()][current.getY()] = true;
+
+        // Check all four directions
+        Position[] neighbors = {
+            new Position(current.getX() + 1, current.getY()),
+            new Position(current.getX() - 1, current.getY()),
+            new Position(current.getX(), current.getY() + 1),
+            new Position(current.getX(), current.getY() - 1)
+        };
+
+        for (Position next : neighbors) {
+            if (findPath(next, end, visited)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private ResourceType getRandomBaseResource() {
@@ -89,5 +169,24 @@ public class GameMap {
     public Position getMarketPosition() {
         // Market is at bottom-right corner as defined in generateMap()
         return new Position(width - 1, height - 1);
+    }
+
+
+    public void loadTile(int x, int y, TileType type, ResourceType resourceType) {
+        if (x >= 0 && x < width && y >= 0 && y < height) {
+            grid[x][y] = new Tile(type);
+            if (resourceType != null) {
+                grid[x][y].setResource(new Resource(resourceType));
+            }
+        }
+    }
+
+    public void clear() {
+        // Clear existing tiles before loading
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                grid[x][y] = new Tile(TileType.EMPTY);
+            }
+        }
     }
 }

@@ -2,6 +2,8 @@ package com.resourcegame.ui;
 
 import com.resourcegame.utils.*;
 import com.resourcegame.core.Game;
+import com.resourcegame.core.GameMap;
+import com.resourcegame.core.Tile;
 import com.resourcegame.entities.*;
 import com.resourcegame.systems.Market;
 import com.resourcegame.systems.Recipe;
@@ -13,6 +15,22 @@ public class GameState {
 
     public static void saveGame(Game game, String filename) throws IOException {
         try (PrintWriter writer = new PrintWriter(new FileWriter(filename))) {
+            // Save map dimensions first
+            GameMap gameMap = game.getMap();
+            writer.println("MAP_DIMENSIONS");
+            writer.println(gameMap.getWidth() + DELIMITER + gameMap.getHeight());
+
+            // Save map tiles
+            writer.println("MAP_TILES");
+            for (int y = 0; y < gameMap.getHeight(); y++) {
+                for (int x = 0; x < gameMap.getWidth(); x++) {
+                    Position pos = new Position(x, y);
+                    Tile tile = gameMap.getTile(pos);
+                    writer.println(tile.getType() + DELIMITER +
+                            (tile.hasResource() ? tile.getResource().getType() : "NONE"));
+                }
+            }
+
             // Save player data
             Player player = game.getPlayer();
             writer.println("PLAYER");
@@ -62,6 +80,15 @@ public class GameState {
                 writer.println("END_MACHINE");
             }
 
+            // Save unplaced machines in inventory
+            writer.println("UNPLACED_MACHINES");
+            for (MachineType type : MachineType.values()) {
+                int count = player.getInventory().getUnplacedMachineCount(type);
+                if (count > 0) {
+                    writer.println(type + DELIMITER + count);
+                }
+            }
+
             // Save market data
             writer.println("MARKET");
             Market market = game.getMarket();
@@ -74,33 +101,119 @@ public class GameState {
         }
     }
 
+
+    private static void loadMapTile(GameMap gameMap, String[] parts, int x, int y) {
+        TileType tileType = TileType.valueOf(parts[0]);
+        ResourceType resourceType = parts[1].equals("NONE") ? null : ResourceType.valueOf(parts[1]);
+        gameMap.loadTile(x, y, tileType, resourceType);
+    }
+
     public static void loadGame(Game game, String filename) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
             String line;
             String section = "";
             Machine currentMachine = null;
+            GameMap gameMap = game.getMap(); // Use existing map
+            int mapWidth = 0, mapHeight = 0;
+            int currentRow = 0;
 
             while ((line = reader.readLine()) != null) {
-                if (line.equals("PLAYER") || line.equals("INVENTORY") ||
-                        line.equals("MACHINES") || line.equals("MARKET")) {
+                if (line.equals("MAP_DIMENSIONS") || line.equals("MAP_TILES") || 
+                    line.equals("PLAYER") || line.equals("INVENTORY") ||
+                    line.equals("MACHINES") || line.equals("MARKET") || 
+                    line.equals("UNPLACED_MACHINES")) {
                     section = line;
+                    currentRow = 0;
                     continue;
                 }
 
                 String[] parts = line.split(DELIMITER);
 
                 switch (section) {
+                    case "MAP_DIMENSIONS":
+                        mapWidth = Integer.parseInt(parts[0]);
+                        mapHeight = Integer.parseInt(parts[1]);
+                        if (game.getMap() == null || 
+                            game.getMap().getWidth() != mapWidth || 
+                            game.getMap().getHeight() != mapHeight) {
+                            gameMap = new GameMap(mapWidth, mapHeight);
+                            game.setMap(gameMap);
+                        } else {
+                            gameMap.clear(); // Clear existing map before loading
+                        }
+                        break;
+
+                    case "MAP_TILES":
+                        if (currentRow < mapHeight * mapWidth) {
+                            int x = currentRow % mapWidth;
+                            int y = currentRow / mapWidth;
+                            loadMapTile(gameMap, parts, x, y);
+                            currentRow++;
+                        }
+                        break;
+
                     case "PLAYER":
-                        handlePlayerLoad(game, parts);
+                        if (parts.length == 2) {
+                            int x = Integer.parseInt(parts[0]);
+                            int y = Integer.parseInt(parts[1]);
+                            game.getPlayer().setPosition(new Position(x, y));
+                        }
                         break;
+
                     case "INVENTORY":
-                        handleInventoryLoad(game, parts, line);
+                        try {
+                            int money = Integer.parseInt(line);
+                            game.getPlayer().getInventory().addMoney(money - 100); // Adjust for starting money
+                        } catch (NumberFormatException e) {
+                            ResourceType type = ResourceType.valueOf(parts[0]);
+                            int count = Integer.parseInt(parts[1]);
+                            game.getPlayer().getInventory().addResource(type, count);
+                        }
                         break;
+
                     case "MACHINES":
-                        currentMachine = handleMachineLoad(game, parts, line, currentMachine);
+                        if (line.equals("END_MACHINE")) {
+                            currentMachine = null;
+                        } else if (line.startsWith("HARVESTER_CONFIG")) {
+                            if (currentMachine instanceof Harvester && !parts[1].equals("NONE")) {
+                                ((Harvester) currentMachine).setTargetResource(ResourceType.valueOf(parts[1]));
+                            }
+                        } else if (line.startsWith("FACTORY_CONFIG")) {
+                            if (currentMachine instanceof Factory && !parts[1].equals("NONE")) {
+                                Recipe recipe = findRecipe(game, parts[1]);
+                                if (recipe != null) {
+                                    ((Factory) currentMachine).setRecipe(recipe);
+                                }
+                            }
+                        } else if (line.startsWith("MACHINE_INV")) {
+                            if (currentMachine != null) {
+                                ResourceType type = ResourceType.valueOf(parts[1]);
+                                int count = Integer.parseInt(parts[2]);
+                                currentMachine.getInventory().addResource(type, count);
+                            }
+                        } else {
+                            // New machine entry
+                            MachineType type = MachineType.valueOf(parts[0]);
+                            int x = Integer.parseInt(parts[1]);
+                            int y = Integer.parseInt(parts[2]);
+                            Position pos = new Position(x, y);
+                            currentMachine = game.getMachineManager().createMachine(type, pos);
+                            if (currentMachine != null) {
+                                gameMap.getTile(pos).setMachine(currentMachine);
+                            }
+                        }
                         break;
+
+                    case "UNPLACED_MACHINES":
+                        MachineType type = MachineType.valueOf(parts[0]);
+                        int count = Integer.parseInt(parts[1]);
+                        for (int i = 0; i < count; i++) {
+                            game.getPlayer().getInventory().addMachine(type);
+                        }
+                        break;
+
                     case "MARKET":
-                        handleMarketLoad(game, parts);
+                        // Market data loading implementation
                         break;
                 }
             }

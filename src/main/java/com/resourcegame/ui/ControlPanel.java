@@ -321,7 +321,7 @@ public class ControlPanel extends JPanel {
                                 frame.removeKeyListener(this);
                                 frame.requestFocus();
 
-                                // Return machine to inventory on cancel
+                                // Return machine to inventory only if it wasn't successfully placed
                                 game.getPlayer().getInventory().addMachine(type);
 
                                 JOptionPane.showMessageDialog(frame,
@@ -349,6 +349,9 @@ public class ControlPanel extends JPanel {
                 mapPanel.removeMouseListener(this);
 
                 if (game.placeMachine(type, pos)) {
+                    // Successfully placed - remove from inventory
+                    game.getPlayer().getInventory().removeMachine(type);
+                    
                     JOptionPane.showMessageDialog(mapPanel,
                             "Machine placed successfully!",
                             "Success",
@@ -361,8 +364,10 @@ public class ControlPanel extends JPanel {
                         frame.removeKeyListener(escapeListenerHolder[0]);
                         frame.requestFocus();
                     }
+                } else {
+                    // Failed to place - add machine back to inventory
+                    game.getPlayer().getInventory().addMachine(type);
                 }
-                // Note: Don't show failure message here as it's handled in placeMachine
             }
         };
 

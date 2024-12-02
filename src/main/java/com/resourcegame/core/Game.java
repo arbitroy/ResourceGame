@@ -34,17 +34,29 @@ public class Game {
 
     public Game() {
         this.uiListeners = new ArrayList<>();
-        initializeGame();
+        initializeGame(new GameMap(20, 20));
     }
 
-    private void initializeGame() {
-        map = new GameMap(20, 20);
+    public Game(GameMap existingMap) {
+        this.uiListeners = new ArrayList<>();
+        initializeGame(existingMap);
+    }
+
+    private void initializeGame(GameMap gameMap) {
+        this.map = gameMap;
         player = new Player(map.getStartingPosition());
         market = new Market();
         craftingSystem = new CraftingSystem();
         machineManager = new MachineManager(map);
-        // Connect the market to the machine manager
         market.setMachineManager(machineManager);
+    }
+
+    public void setMap(GameMap map) {
+        this.map = map;
+        if (machineManager != null) {
+            machineManager = new MachineManager(map);
+            market.setMachineManager(machineManager);
+        }
     }
 
     public void movePlayer(Direction direction) {
@@ -288,6 +300,26 @@ public class Game {
         }
     }
 
+
+
+    public void updateFrom(Game other) {
+        this.map = other.getMap();
+        this.player = other.getPlayer();
+        this.market = other.getMarket();
+        this.craftingSystem = other.getCraftingSystem();
+        this.machineManager = other.getMachineManager();
+        this.controlPanel = other.getControlPanel();
+        
+        if (this.controlPanel != null) {
+            this.controlPanel.updateInventoryDisplay(this.player.getInventory().getInventoryDisplay());
+            this.controlPanel.updateMarketButton(
+                this.player.getPosition().isAdjacent(this.map.getMarketPosition())
+            );
+        }
+        
+        notifyUIUpdate();
+    }
+    
     // Getters
     public GameMap getMap() {
         return map;

@@ -222,7 +222,8 @@ public class MarketPanel extends JPanel {
         int price = type.getBasePrice();
     
         if (playerInventory.getMoney() >= price) {
-            if (market.purchaseMachine(type, playerInventory)) {
+            // Don't add machine to inventory yet if we're placing immediately
+            if (market.finalizeMachinePurchase(type, playerInventory)) {
                 updateDisplay();
                 
                 int response = JOptionPane.showConfirmDialog(
@@ -240,11 +241,16 @@ public class MarketPanel extends JPanel {
                         window.dispose();
                     }
                     
+                    // Add machine to inventory only if placement fails
+                    playerInventory.addMachine(type);
+                    
                     // Start placement process
                     SwingUtilities.invokeLater(() -> {
                         controlPanel.startMachinePlacement(type);
                     });
                 } else {
+                    // Add to inventory only if not placing immediately
+                    playerInventory.addMachine(type);
                     showNotification("Machine added to inventory. You can place it later from the Machine Management panel.", true);
                 }
     
