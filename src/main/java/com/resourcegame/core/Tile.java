@@ -14,29 +14,11 @@ public class Tile {
     }
 
     public boolean isWalkable() {
-        // Always blocked if there's a machine
-        if (machine != null) {
-            return false;
-        }
-        
-        // Always blocked if it's a blocked tile
-        if (type == TileType.BLOCKED) {
-            return false;
-        }
-        
-        // Special tiles are always walkable
-        if (type == TileType.MARKET || type == TileType.STARTING) {
-            return true;
-        }
-        
-        // For resource tiles, check if the resource is regenerating
-        if (type == TileType.RESOURCE && hasResource()) {
-            // Can walk on the tile if the resource is regenerating (not harvestable)
-            return !resource.canHarvest();
-        }
-        
-        // Empty tiles are walkable
-        return true;
+        // Resource tiles are not walkable, unless they're special tiles (MARKET or
+        // STARTING)
+        return type != TileType.BLOCKED &&
+                machine == null &&
+                (type != TileType.RESOURCE || type == TileType.MARKET || type == TileType.STARTING);
     }
 
     public TileType getType() {
